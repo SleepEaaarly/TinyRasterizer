@@ -1,6 +1,7 @@
 #ifndef WINDOW_H
 #define WINDOW_H
 
+#define NOMINMAX
 #include <windows.h>
 #include "tgaimage.h"
 

@@ -38,6 +38,7 @@ public:
 	Matrix viewport(int x, int y, int w, int h);
 	std::vector<Triangle> transform(Mesh &mesh);
 	std::vector<Triangle> transform(Mesh &mesh, Camera &camera);
+	std::vector<Triangle> transformCuda(std::vector<Mesh> &meshes);
 };
 
 #endif

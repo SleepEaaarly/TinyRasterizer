@@ -23,71 +23,6 @@ Buffer z_buffer(WIDTH, HEIGHT, true);
 Light light(Vec3f(1.f,1.f,1.f), Vec3f(1.f,-1.f,-1.f));
 Window window(WIDTH, HEIGHT);
 
-bool check_edge(int x, int y, int width, int height) {
-	if (x < 0 || x >= width || y < 0 || y >= height)
-		return false;
-	return true;
-}
-
-void draw_line(int x0, int y0, int x1, int y1, TGAImage &image, Color c) {
-	// 单点
-	if (x0 == x1 && y0 == y1) {
-		image.set(x0, y0, c);
-		return;
-	}
-	
-	// 同行或同列
-	if (x0 == x1) {
-		if (y0 > y1)	std::swap(y0, y1);
-		for (int y = y0; y <= y1; ++y) {
-			image.set(x0, y, c);
-		}
-		return;
-	}
-	else if (y0 == y1) {
-		if (x0 > x1)	std::swap(x0, x1);
-		for (int x = x0; x <= x1; ++x) {
-			image.set(x, y0, c);
-		}
-		return;
-	}
-
-	// 普通情况
-	bool trans = false;
-	if (std::abs(x0 - x1) < std::abs(y0 - y1)) {
-		std::swap(x0, y0);
-		std::swap(x1, y1);
-		trans = true;
-	}
-	if (x0 > x1) {					// from left to right
-		std::swap(x0, x1);
-		std::swap(y0, y1);
-	}
-
-	int dx = x1 - x0;
-	int dy = y1 - y0;
-	float ddy = std::abs(dy/float(dx));
-	float inc = 0;
-	int y = y0;
-	int width = image.get_width();
-	int height = image.get_height();
-
-	for (int x = x0; x <= x1; x++) {
-		if (trans) {
-			if (check_edge(y, x, width, height))
-				image.set(y, x, c);
-		} else {
-			if (check_edge(x, y, width, height))
-				image.set(x, y, c);
-		}
-		inc += ddy;
-		if (inc > .5) {
-			y += dy > 0 ? 1 : -1;
-			inc -= 1.f;
-		}
-	}
-}
-
 float edge(Vec2f p0, Vec2f p1, Vec2f p) {
 	Vec2f e0 = p1 - p0;
 	Vec2f e1 = p - p0;
@@ -164,14 +99,16 @@ void draw_triangle(Triangle &tri, TGAImage &image, Shader &shader) {
 				pos_view = vec3_persp_interpolate(pos_views, z, depth_arr, lambda);
 				if (z < z_buffer.get(x, y)) {
 					Fragment frag(Vec2i(x,y), tex_coord, norm, pos_view);
-					window.drawPixel(x, y, shader.shadeFragment(frag));
-					// image.set(x, y, shader.shadeFragment(frag));
+					// window.drawPixel(x, y, shader.shadeFragment(frag));
+					image.set(x, y, shader.shadeFragment(frag));
 					z_buffer.set(x, y, z);
 				}
 			}
 		}
 	}
 }
+
+#include <chrono>
 
 
 int main(int argc, char** argv) {
@@ -190,45 +127,52 @@ int main(int argc, char** argv) {
 
 	// window.init();
 
-	while (!Window::screenExit && Window::screenKeys[VK_ESCAPE] == 0) {
-		z_buffer.clearBuffer();
-		window.clearScreen();
+	// while (!Window::screenExit && Window::screenKeys[VK_ESCAPE] == 0) {
+	// 	z_buffer.clearBuffer();
+	// 	window.clearScreen();
 
-		window.pollMessage();
-		camera.processInput();
-		for (int i=0; i<meshes.size(); i++) {
-			// Triangle tri = vShader.transform(meshes[i], camera);
-			// std::cout << "mesh.face: " << i << std::endl;
-			std::vector<Triangle> triangles = vShader.transform(meshes[i], camera);
-			for (int j = 0; j < triangles.size(); ++j) 
-				draw_triangle(triangles[j], image, shader);
-			// draw_triangle(tri, image, shader);
-		}
-		window.updateScreen();
-		// std::cout << "1" << std::endl;
-	} 
+	// 	window.pollMessage();
+	// 	camera.processInput();
+	// 	for (int i = 0; i < meshes.size(); i++) {
+	// 		std::vector<Triangle> triangles = vShader.transform(meshes[i], camera);
+	// 		for (int j = 0; j < triangles.size(); ++j) 
+	// 			draw_triangle(triangles[j], image, shader);
+	// 	}
+	// 	window.updateScreen();
+	// } 
+	z_buffer.clearBuffer();
 
-	// image.flip_vertically();
-	// image.write_tga_file("output.tga");
+	std::vector<Triangle> triangles;
+	
+	auto start = std::chrono::high_resolution_clock::now();
+	
+	for (int i = 0; i < meshes.size(); ++i) {
+		std::vector<Triangle> mesh_tri = vShader.transform(meshes[i], camera);
+		triangles.insert(triangles.end(), mesh_tri.begin(), mesh_tri.end());
+	}
+
+	auto end = std::chrono::high_resolution_clock::now();
+	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    std::cout << "Elapsed time: " << duration.count() << " milliseconds" << std::endl;
+
+	start = std::chrono::high_resolution_clock::now();
+	for (int i = 0; i < triangles.size(); ++i) {
+		draw_triangle(triangles[i], image, shader);
+	}
+
+	end = std::chrono::high_resolution_clock::now();
+	duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    std::cout << "Elapsed time: " << duration.count() << " milliseconds" << std::endl;
+
+	// std::cout << sizeof(Mesh) << std::endl;
+	// for (int i = 0; i < meshes.size(); i++) {
+	// 	std::vector<Triangle> triangles = vShader.transform(meshes[i], camera);
+	// 	for (int j = 0; j < triangles.size(); ++j) 
+	// 		draw_triangle(triangles[j], image, shader);
+	// }
+
+	image.write_tga_file("output.tga");
 
 	return 0;
 }
 
-// #include <iostream>
-
-// void outputVector(Vec3f v) {
-// 	for (int i = 0; i < 3; i++) {
-// 		std::cout << v[i] << " ";
-// 	}
-// 	std::cout << std::endl;
-// }
-
-// void outputMatrix(Matrix m) {
-// 	for (int i = 0; i < 4; i++) {
-// 		for (int j = 0; j < 4; j++) {
-// 			std::cout << m[i][j] << " ";
-// 		}
-// 		std::cout << std::endl;
-// 	}
-// 	std::cout << std::endl;
-// }
