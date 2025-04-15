@@ -13,6 +13,7 @@ private:
 	std::vector<std::vector<Vec3i> > faces_;
 
 	std::vector<Mesh> meshes;
+	std::vector<Vert> verts;
 
 public:
 	Model(const char *filename);
@@ -31,6 +32,7 @@ public:
 	std::vector<int> faceNormIdx(int idx);
 
 	std::vector<Mesh> getMeshes();
+	std::vector<Vert> getVerts();
 };
 
 #endif //__MODEL_H__

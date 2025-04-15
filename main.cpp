@@ -10,6 +10,7 @@
 #include "window.h"
 #include <iostream>
 #include <vector>
+#include <assert.h>
 
 const Color white = Color(255, 255, 255, 255);
 const Color red   = Color(255, 0,   0,   255);
@@ -23,7 +24,7 @@ Buffer z_buffer(WIDTH, HEIGHT, true);
 Light light(Vec3f(1.f,1.f,1.f), Vec3f(1.f,-1.f,-1.f));
 Window window(WIDTH, HEIGHT);
 
-float edge(Vec2f p0, Vec2f p1, Vec2f p) {
+float edge(Vec2f &p0, Vec2f &p1, Vec2f &p) {
 	Vec2f e0 = p1 - p0;
 	Vec2f e1 = p - p0;
 	return e0.x * e1.y - e1.x * e0.y;
@@ -123,8 +124,11 @@ int main(int argc, char** argv) {
 	Camera camera;
 	Transform vShader(WIDTH, HEIGHT, z_buffer.getUpperRange());
 
-	std::vector<Mesh> meshes = model->getMeshes();
+	// std::vector<Mesh> meshes = model->getMeshes();
+	std::vector<Vert> verts = model->getVerts();
+	std::vector<Vert> verts_debug = {verts[6302], verts[6303], verts[6301]};
 
+	assert(verts.size() % 3 == 0);
 	// window.init();
 
 	// while (!Window::screenExit && Window::screenKeys[VK_ESCAPE] == 0) {
@@ -144,25 +148,38 @@ int main(int argc, char** argv) {
 
 	std::vector<Triangle> triangles;
 	
-	auto start = std::chrono::high_resolution_clock::now();
-	
-	for (int i = 0; i < meshes.size(); ++i) {
-		std::vector<Triangle> mesh_tri = vShader.transform(meshes[i], camera);
-		triangles.insert(triangles.end(), mesh_tri.begin(), mesh_tri.end());
-	}
+	// vShader.test();
+	// std::cout << sizeof(Vert) << std::endl;
+	// exit(-1);
 
+	auto start = std::chrono::high_resolution_clock::now();
+	triangles = vShader.transform(verts);
+	std::cout << triangles.size() << std::endl;
 	auto end = std::chrono::high_resolution_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cout << "Elapsed time: " << duration.count() << " milliseconds" << std::endl;
+	std::cout << "cpu: " << duration.count() << " milliseconds" << std::endl;
 
-	start = std::chrono::high_resolution_clock::now();
+	// auto start = std::chrono::high_resolution_clock::now();
+	// triangles = vShader.transformCuda(verts);	
+	// std::cout << triangles.size() << std::endl;
+	// auto end = std::chrono::high_resolution_clock::now();
+	// auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    // std::cout << "cuda: " << duration.count() << " milliseconds" << std::endl;
+
+	// exit(-1);
+	// for (int i = 0; i < meshes.size(); ++i) {
+	// 	std::vector<Triangle> mesh_tri = vShader.transform(meshes[i], camera);
+	// 	triangles.insert(triangles.end(), mesh_tri.begin(), mesh_tri.end());
+	// }
+
+	// start = std::chrono::high_resolution_clock::now();
 	for (int i = 0; i < triangles.size(); ++i) {
 		draw_triangle(triangles[i], image, shader);
 	}
 
-	end = std::chrono::high_resolution_clock::now();
-	duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cout << "Elapsed time: " << duration.count() << " milliseconds" << std::endl;
+	// end = std::chrono::high_resolution_clock::now();
+	// duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    // std::cout << "fragment: " << duration.count() << " milliseconds" << std::endl;
 
 	// std::cout << sizeof(Mesh) << std::endl;
 	// for (int i = 0; i < meshes.size(); i++) {

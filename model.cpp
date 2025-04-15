@@ -111,3 +111,18 @@ std::vector<Mesh> Model::getMeshes() {
     }
     return meshes;
 }
+
+std::vector<Vert> Model::getVerts() {
+    if (verts.empty()) {
+        for (int i=0; i<nfaces(); i++) {
+            for (int j=0; j<3; j++) {
+                Vert _vert;
+                _vert.pos = vert(faceVertIdx(i)[j]);
+                _vert.tex = tex(faceTexIdx(i)[j]);
+                _vert.norm = norm(faceNormIdx(i)[j]);
+                verts.push_back(_vert);
+            }
+        }
+    }
+    return verts;
+}

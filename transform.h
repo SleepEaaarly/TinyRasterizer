@@ -20,14 +20,22 @@ private:
 	Matrix view;
 	Matrix persp;
 	Matrix vp;
+	Matrix model_inv;
 	std::vector<Vec4f> clipPlanes;
+
+
 
 	void init();
 	bool insideWayPlane(Vert &v, Vec4f &plane);
 	std::vector<Vert> sutherlandHodgeman(Vert &v0, Vert &v1, Vert &v2);
 	bool allInsideClipCube(std::vector<Vert> &verts);
 	Vert intersect(Vert &v0, Vert &v1, Vec4f &plane);
-	std::vector<Triangle> transform(Mesh &mesh, Matrix &m_model, Matrix &m_view, Matrix &m_persp, Matrix &m_vp);
+	std::vector<Triangle> transform(Mesh &mesh, Matrix &m_view);
+	
+	Vert transformVert(Vert &vert, Matrix &model_view, Matrix &model_view_inv_trans, Matrix &model_view_persp);
+	std::vector<Triangle> transform(Vert &vert0, Vert &vert1, Vert &vert2, Matrix &model_view, Matrix &model_view_inv_trans, Matrix &model_view_persp);
+	std::vector<Triangle> transform(std::vector<Vert> &verts, Matrix &m_view);
+	std::vector<Triangle> transformCuda(std::vector<Vert> &verts, Matrix &m_view);
 
 public:
 
@@ -38,7 +46,12 @@ public:
 	Matrix viewport(int x, int y, int w, int h);
 	std::vector<Triangle> transform(Mesh &mesh);
 	std::vector<Triangle> transform(Mesh &mesh, Camera &camera);
-	std::vector<Triangle> transformCuda(std::vector<Mesh> &meshes);
+	std::vector<Triangle> transform(std::vector<Vert> &verts);
+	std::vector<Triangle> transform(std::vector<Vert> &verts, Camera &camera);
+	std::vector<Triangle> transformCuda(std::vector<Vert> &verts);
+	void cudaInit();
+	void cudaRelease();
+	void test();
 };
 
 #endif
