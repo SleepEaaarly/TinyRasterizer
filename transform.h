@@ -4,6 +4,7 @@
 #include "geometry.h"
 #include "primitive.h"
 #include "camera.h"
+#include "primitive_cuda.cuh"
 
 extern const int WIDTH;
 extern const int HEIGHT;
@@ -22,6 +23,10 @@ private:
 	Matrix vp;
 	Matrix model_inv;
 	std::vector<Vec4f> clipPlanes;
+
+	// cuda pointers
+	Vert_cuda* d_verts;
+	
 
 
 

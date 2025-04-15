@@ -1,6 +1,5 @@
 #include "transform.h"
 #include "transform_cuda.h"
-#include "primitive_cuda.cuh"
 #include "debug.h"
 #include <chrono>
 
@@ -320,6 +319,14 @@ std::vector<Triangle> Transform::transformCuda(std::vector<Vert> &verts, Matrix 
 
 std::vector<Triangle> Transform::transformCuda(std::vector<Vert> &verts) {
 	return transformCuda(verts, view);
+}
+
+void Transform::cudaInit() {
+
+}
+
+void Transform::cudaRelease() {
+
 }
 
 void Transform::test() {
