@@ -8,6 +8,7 @@
 #include "light.h"
 #include "camera.h"
 #include "window.h"
+#include "rasterizer.h"
 #include <iostream>
 #include <vector>
 #include <assert.h>
@@ -24,100 +25,102 @@ Buffer z_buffer(WIDTH, HEIGHT, true);
 Light light(Vec3f(1.f,1.f,1.f), Vec3f(1.f,-1.f,-1.f));
 Window window(WIDTH, HEIGHT);
 
-float edge(Vec2f &p0, Vec2f &p1, Vec2f &p) {
-	Vec2f e0 = p1 - p0;
-	Vec2f e1 = p - p0;
-	return e0.x * e1.y - e1.x * e0.y;
-}
-
-Vec3f barycentric(Vec3f *t, Vec2f p) {
-	Vec2f t0(t[0].x, t[0].y);
-	Vec2f t1(t[1].x, t[1].y);
-	Vec2f t2(t[2].x, t[2].y);
-
-	float tri_area = edge(t0, t1, t2);
-	if (std::abs(tri_area) < 1e-6)
-		return Vec3f(-1.f, -1.f, -1.f);
-	float lambda0 = edge(t1, t2, p) / tri_area;
-	float lambda1 = edge(t2, t0, p) / tri_area;
-	float lambda2 = edge(t0, t1, p) / tri_area;
-
-	return Vec3f(lambda0, lambda1, lambda2);
-}
-
-// float persp_interpolate(Vec3f depth, Vec3f lambda) {
-// 	return 1. / (lambda[0] / depth[0] + lambda[1] / depth[1] + lambda[2] / depth[2]);
+// float edge(Vec2f &p0, Vec2f &p1, Vec2f &p) {
+// 	Vec2f e0 = p1 - p0;
+// 	Vec2f e1 = p - p0;
+// 	return e0.x * e1.y - e1.x * e0.y;
 // }
 
-void check_division(Vec3f &depth) {
-	for (int i = 0; i < 3; i++) {
-		if (depth[i] < 1e-6) {
-			depth[i] += 1e-6;
-		}
-	}
-}
+// Vec3f cross(Vec3f &v1, Vec3f &v2) {
+// 	return Vec3f(v1.y*v2.z-v2.y*v1.z, v1.z*v2.x-v2.z*v1.x, v1.x*v2.y-v2.x*v1.y);
+// }
 
-float depth_persp_interpolate(Vec3f depth, Vec3f lambda) {
-	check_division(depth);
-	return 1. / (lambda[0] / (depth[0]) + lambda[1] / (depth[1]) + lambda[2] / (depth[2]));
-}
+// Vec3f barycentric(Vec3f *t, Vec2f p) {
+// 	Vec2f t0(t[0].x, t[0].y);
+// 	Vec2f t1(t[1].x, t[1].y);
+// 	Vec2f t2(t[2].x, t[2].y);
 
-Vec2f vec2_persp_interpolate(Vec2f* vec2_arr, float depth, Vec3f depth_arr, Vec3f lambda) {
-	check_division(depth_arr);
-	Vec2f vec2 = depth*(lambda[0]*vec2_arr[0]/depth_arr[0]+lambda[1]*vec2_arr[1]/depth_arr[1]+lambda[2]*vec2_arr[2]/depth_arr[2]);
-	return vec2;
-}
+// 	Vec3f vec1 = Vec3f(t2.x-t0.x, t1.x-t0.x, t0.x-p.x);
+// 	Vec3f vec2 = Vec3f(t2.y-t0.y, t1.y-t0.y, t0.y-p.y);
+// 	Vec3f u = cross(vec1, vec2);
 
-Vec3f vec3_persp_interpolate(Vec3f* vec3_arr, float depth, Vec3f depth_arr, Vec3f lambda) {
-	check_division(depth_arr);
-	Vec3f vec3 = depth*(lambda[0]*vec3_arr[0]/depth_arr[0]+lambda[1]*vec3_arr[1]/depth_arr[1]+lambda[2]*vec3_arr[2]/depth_arr[2]);
-	return vec3;
-}
+// 	if (std::abs(u.z) < 1e-6)	return Vec3f(-1.f,1.f,1.f);
+// 	return Vec3f(1.f-(u.x+u.y)/u.z, u.y/u.z, u.x/u.z);
+// }
 
-void draw_triangle(Triangle &tri, TGAImage &image, Shader &shader) {
-	Vec3f *pts = tri.poses;
-	Vec2f *texs = tri.texs;
-	Vec3f *norms = tri.norms;
-	Vec3f *pos_views = tri.poses_view;
-	int bboxmin_x = std::max(0, static_cast<int>(std::min(pts[0].x, std::min(pts[1].x, pts[2].x))));
-	int bboxmax_x = std::min(WIDTH-1, static_cast<int>(std::max(pts[0].x, std::max(pts[1].x, pts[2].x))));
-	int bboxmin_y = std::max(0, static_cast<int>(std::min(pts[0].y, std::min(pts[1].y, pts[2].y))));
-	int bboxmax_y = std::min(HEIGHT-1, static_cast<int>(std::max(pts[0].y, std::max(pts[1].y, pts[2].y))));
+// // float persp_interpolate(Vec3f depth, Vec3f lambda) {
+// // 	return 1. / (lambda[0] / depth[0] + lambda[1] / depth[1] + lambda[2] / depth[2]);
+// // }
 
-	for (int x = bboxmin_x; x <= bboxmax_x; ++x) {
-		for (int y = bboxmin_y; y <= bboxmax_y; ++y) {
-			Vec3f lambda = barycentric(pts, Vec2f(x+.5, y+.5));
-			if (lambda[0] >= 0 && lambda[1] >= 0 && lambda[2] >= 0) {	// !!! 等于号 , 否则会有边缘空洞
-				float z = 0;	Vec2f tex_coord;	Vec3f norm;	Vec3f pos_view;
-				// for (int i = 0; i < 3; i++)		z += pts[i].z * lambda[i];
-				// tex_coord = texs[0] * lambda[0] + texs[1] * lambda[1] + texs[2] * lambda[2];
-				// norm = norms[0]*lambda[0]+norms[1]*lambda[1]+norms[2]*lambda[2];
-				// pos_view = pos_views[0]*lambda[0]+pos_views[1]*lambda[1]+pos_views[2]*lambda[2];
-				Vec3f depth_arr(pts[0].z, pts[1].z, pts[2].z);
-				z = depth_persp_interpolate(depth_arr, lambda);
-				tex_coord = vec2_persp_interpolate(texs, z, depth_arr, lambda);
-				norm = vec3_persp_interpolate(norms, z, depth_arr, lambda);
-				pos_view = vec3_persp_interpolate(pos_views, z, depth_arr, lambda);
-				if (z < z_buffer.get(x, y)) {
-					Fragment frag(Vec2i(x,y), tex_coord, norm, pos_view);
-					// window.drawPixel(x, y, shader.shadeFragment(frag));
-					image.set(x, y, shader.shadeFragment(frag));
-					z_buffer.set(x, y, z);
-				}
-			}
-		}
-	}
-}
+// void zeroCheck(Vec3f &depth) {
+// 	for (int i = 0; i < 3; i++) {
+// 		if (depth[i] < 1e-6) {
+// 			depth[i] = 1e-6;
+// 		}
+// 	}
+// }
+
+// float depth_persp_interpolate(Vec3f depth, Vec3f lambda) {
+// 	zeroCheck(depth);
+// 	return 1. / (lambda[0] / (depth[0]) + lambda[1] / (depth[1]) + lambda[2] / (depth[2]));
+// }
+
+// Vec2f vec2_persp_interpolate(Vec2f* vec2_arr, float depth, Vec3f depth_arr, Vec3f lambda) {
+// 	zeroCheck(depth_arr);
+// 	Vec2f vec2 = depth*(lambda[0]*vec2_arr[0]/depth_arr[0]+lambda[1]*vec2_arr[1]/depth_arr[1]+lambda[2]*vec2_arr[2]/depth_arr[2]);
+// 	return vec2;
+// }
+
+// Vec3f vec3_persp_interpolate(Vec3f* vec3_arr, float depth, Vec3f depth_arr, Vec3f lambda) {
+// 	zeroCheck(depth_arr);
+// 	Vec3f vec3 = depth*(lambda[0]*vec3_arr[0]/depth_arr[0]+lambda[1]*vec3_arr[1]/depth_arr[1]+lambda[2]*vec3_arr[2]/depth_arr[2]);
+// 	return vec3;
+// }
+
+// void draw_triangle(Triangle &tri, TGAImage &image, Shader &shader) {
+// 	Vec3f *pts = tri.poses;
+// 	Vec2f *texs = tri.texs;
+// 	Vec3f *norms = tri.norms;
+// 	Vec3f *pos_views = tri.poses_view;
+// 	int bboxmin_x = std::max(0, static_cast<int>(std::min(pts[0].x, std::min(pts[1].x, pts[2].x))));
+// 	int bboxmax_x = std::min(WIDTH-1, static_cast<int>(std::max(pts[0].x, std::max(pts[1].x, pts[2].x))));
+// 	int bboxmin_y = std::max(0, static_cast<int>(std::min(pts[0].y, std::min(pts[1].y, pts[2].y))));
+// 	int bboxmax_y = std::min(HEIGHT-1, static_cast<int>(std::max(pts[0].y, std::max(pts[1].y, pts[2].y))));
+
+// 	for (int x = bboxmin_x; x <= bboxmax_x; ++x) {
+// 		for (int y = bboxmin_y; y <= bboxmax_y; ++y) {
+// 			Vec3f lambda = barycentric(pts, Vec2f(x+.5, y+.5));
+// 			if (lambda[0] >= 0.f && lambda[1] >= 0.f && lambda[2] >= 0.f) {	// !!! 等于号 , 否则会有边缘空洞
+// 				float z = 0;	Vec2f tex_coord;	Vec3f norm;	Vec3f pos_view;
+// 				// for (int i = 0; i < 3; i++)		z += pts[i].z * lambda[i];
+// 				// tex_coord = texs[0] * lambda[0] + texs[1] * lambda[1] + texs[2] * lambda[2];
+// 				// norm = norms[0]*lambda[0]+norms[1]*lambda[1]+norms[2]*lambda[2];
+// 				// pos_view = pos_views[0]*lambda[0]+pos_views[1]*lambda[1]+pos_views[2]*lambda[2];
+// 				Vec3f depth_arr(pts[0].z, pts[1].z, pts[2].z);
+// 				z = depth_persp_interpolate(depth_arr, lambda);
+// 				tex_coord = vec2_persp_interpolate(texs, z, depth_arr, lambda);
+// 				norm = vec3_persp_interpolate(norms, z, depth_arr, lambda);
+// 				pos_view = vec3_persp_interpolate(pos_views, z, depth_arr, lambda);
+// 				if (z < z_buffer.get(x, y)) {
+// 					Fragment frag(Vec2i(x,y), tex_coord, norm, pos_view);
+// 					// window.drawPixel(x, y, shader.shadeFragment(frag));
+// 					image.set(x, y, shader.shadeFragment(frag));
+// 					z_buffer.set(x, y, z);
+// 				}
+// 			}
+// 		}
+// 	}
+// }
 
 #include <chrono>
 
 
 int main(int argc, char** argv) {
-	// Model *model = new Model("obj/african_head.obj");
-	Model *model = new Model("obj/Marry.obj");
+	Model *model = new Model("obj/african_head.obj");
+	// Model *model = new Model("obj/Marry.obj");
 	Texture texture("tex/african_head_diffuse.tga");
-	// PhongShader shader(texture, light);
-	TextureShader shader(texture);
+	PhongShader shader(texture, light);
+	// TextureShader shader(texture);
 
 	// Model *model = new Model("obj/cube.obj");
 	// Shader shader;
@@ -176,17 +179,18 @@ int main(int argc, char** argv) {
 
 	vShader.cudaRelease();
 
-
-	// // start = std::chrono::high_resolution_clock::now();
+	Rasterizer rasterizer(shader, z_buffer);
+	start = std::chrono::high_resolution_clock::now();
+	rasterizer.rasterizeTriangles(triangles, image);
 	// for (int i = 0; i < triangles.size(); ++i) {
 	// 	draw_triangle(triangles[i], image, shader);
 	// }
 
-	// // end = std::chrono::high_resolution_clock::now();
-	// // duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    // // std::cout << "fragment: " << duration.count() << " milliseconds" << std::endl;
-
-	// image.write_tga_file("output.tga");
+	end = std::chrono::high_resolution_clock::now();
+	duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    std::cout << "fragment: " << duration.count() << " milliseconds" << std::endl;
+	
+	image.write_tga_file("output.tga");
 
 	return 0;
 }
