@@ -4,7 +4,6 @@
 #include "geometry.h"
 #include "primitive.h"
 #include "camera.h"
-#include "primitive_cuda.cuh"
 
 extern const int WIDTH;
 extern const int HEIGHT;
@@ -24,10 +23,18 @@ private:
 	Matrix model_inv;
 	std::vector<Vec4f> clipPlanes;
 
-	// cuda pointers
-	Vert_cuda* d_verts;
-	
-
+	// cuda device pointers
+	Vert* d_verts;
+	float* d_model_view;
+    float* d_model_view_inv_trans;
+    float* d_model_view_persp;
+	float* d_vp;
+	Vert* d_verts_rst;	
+	// need to free pointers
+	Vert* verts_rst;
+	// other properties
+	int num_verts;
+	int num_verts_rst;
 
 
 	void init();
@@ -35,12 +42,11 @@ private:
 	std::vector<Vert> sutherlandHodgeman(Vert &v0, Vert &v1, Vert &v2);
 	bool allInsideClipCube(std::vector<Vert> &verts);
 	Vert intersect(Vert &v0, Vert &v1, Vec4f &plane);
-	std::vector<Triangle> transform(Mesh &mesh, Matrix &m_view);
-	
 	Vert transformVert(Vert &vert, Matrix &model_view, Matrix &model_view_inv_trans, Matrix &model_view_persp);
 	std::vector<Triangle> transform(Vert &vert0, Vert &vert1, Vert &vert2, Matrix &model_view, Matrix &model_view_inv_trans, Matrix &model_view_persp);
-	std::vector<Triangle> transform(std::vector<Vert> &verts, Matrix &m_view);
-	std::vector<Triangle> transformCuda(std::vector<Vert> &verts, Matrix &m_view);
+
+	void updateViewMatrix(Camera &camera);
+	void cudaUpdateMatrix();
 
 public:
 
@@ -54,7 +60,8 @@ public:
 	std::vector<Triangle> transform(std::vector<Vert> &verts);
 	std::vector<Triangle> transform(std::vector<Vert> &verts, Camera &camera);
 	std::vector<Triangle> transformCuda(std::vector<Vert> &verts);
-	void cudaInit();
+	std::vector<Triangle> transformCuda(std::vector<Vert> &verts, Camera &camera);
+	void cudaInit(std::vector<Vert> &verts);
 	void cudaRelease();
 	void test();
 };

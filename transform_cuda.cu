@@ -14,14 +14,14 @@ __global__ void transformObjectToClipKernel(Vert_cuda* verts, float* model_view,
     transformObjectToClip(verts, model_view, model_view_inv_trans, model_view_persp, verts_rst, i, i);                                 
 }
 
-__global__ void transformObjectToScreenKernal(Vert_cuda* verts, float* model_view, float* model_view_inv_trans, float* model_view_persp, float* vp, Vert_cuda* verts_rst, bool* verts_rst_bool, int input_num) {
+__global__ void transformObjectToScreenKernal(Vert_cuda* verts, float* model_view, float* model_view_inv_trans, float* model_view_persp, float* vp, Vert_cuda* verts_rst, int input_num) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= input_num) return;
     // int j = i / 3 * 5 + i % 3;
     int j = i;
 
     transformObjectToClip(verts, model_view, model_view_inv_trans, model_view_persp, verts_rst, i, j);
-    __syncthreads();
+    // __syncthreads();
 
     // if (i * 3 < input_num) {
     //     int verts_group = i * 5;

@@ -145,7 +145,7 @@ template<size_t DimRows,size_t DimCols,typename T> class mat {
 public:
     mat() {}
     
-    float *get_data() {
+    float *get_ptr() {
         return (float*)&rows;
     }
 

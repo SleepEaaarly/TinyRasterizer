@@ -10,7 +10,7 @@
 __global__ void test_cuda(Vert_cuda* ptr);
 
 __global__ void transformObjectToClipKernel(Vert_cuda* verts, float* model_view, float* model_view_inv_trans, float* model_view_persp, Vert_cuda* verts_rst, int input_num);
-__global__ void transformObjectToScreenKernal(Vert_cuda* verts, float* model_view, float* model_view_inv_trans, float* model_view_persp, float* vp, Vert_cuda* verts_rst, bool* verts_rst_bool, int input_num);
+__global__ void transformObjectToScreenKernal(Vert_cuda* verts, float* model_view, float* model_view_inv_trans, float* model_view_persp, float* vp, Vert_cuda* verts_rst, int input_num);
 
 __device__ void transformObjectToClip(Vert_cuda* verts, float* model_view, float* model_view_inv_trans, float* model_view_persp, Vert_cuda* verts_rst, int i, int j);
 __device__ void sutherland_hodgeman(Vert_cuda* verts, bool* marks);

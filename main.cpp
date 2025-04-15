@@ -113,7 +113,8 @@ void draw_triangle(Triangle &tri, TGAImage &image, Shader &shader) {
 
 
 int main(int argc, char** argv) {
-	Model *model = new Model("obj/african_head.obj");
+	// Model *model = new Model("obj/african_head.obj");
+	Model *model = new Model("obj/Marry.obj");
 	Texture texture("tex/african_head_diffuse.tga");
 	// PhongShader shader(texture, light);
 	TextureShader shader(texture);
@@ -126,6 +127,11 @@ int main(int argc, char** argv) {
 
 	// std::vector<Mesh> meshes = model->getMeshes();
 	std::vector<Vert> verts = model->getVerts();
+	if (verts.size() == 0) {
+		image.write_tga_file("output.tga");
+		return 0;
+	}
+
 	std::vector<Vert> verts_debug = {verts[6302], verts[6303], verts[6301]};
 
 	assert(verts.size() % 3 == 0);
@@ -152,43 +158,35 @@ int main(int argc, char** argv) {
 	// std::cout << sizeof(Vert) << std::endl;
 	// exit(-1);
 
-	auto start = std::chrono::high_resolution_clock::now();
-	triangles = vShader.transform(verts);
-	std::cout << triangles.size() << std::endl;
-	auto end = std::chrono::high_resolution_clock::now();
-	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-	std::cout << "cpu: " << duration.count() << " milliseconds" << std::endl;
-
 	// auto start = std::chrono::high_resolution_clock::now();
-	// triangles = vShader.transformCuda(verts);	
+	// triangles = vShader.transform(verts);
 	// std::cout << triangles.size() << std::endl;
 	// auto end = std::chrono::high_resolution_clock::now();
 	// auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    // std::cout << "cuda: " << duration.count() << " milliseconds" << std::endl;
+	// std::cout << "cpu: " << duration.count() << " milliseconds" << std::endl;
 
-	// exit(-1);
-	// for (int i = 0; i < meshes.size(); ++i) {
-	// 	std::vector<Triangle> mesh_tri = vShader.transform(meshes[i], camera);
-	// 	triangles.insert(triangles.end(), mesh_tri.begin(), mesh_tri.end());
+	vShader.cudaInit(verts);
+
+	auto start = std::chrono::high_resolution_clock::now();
+	triangles = vShader.transformCuda(verts);	
+	std::cout << triangles.size() << std::endl;
+	auto end = std::chrono::high_resolution_clock::now();
+	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    std::cout << "cuda: " << duration.count() << " milliseconds" << std::endl;
+
+	vShader.cudaRelease();
+
+
+	// // start = std::chrono::high_resolution_clock::now();
+	// for (int i = 0; i < triangles.size(); ++i) {
+	// 	draw_triangle(triangles[i], image, shader);
 	// }
 
-	// start = std::chrono::high_resolution_clock::now();
-	for (int i = 0; i < triangles.size(); ++i) {
-		draw_triangle(triangles[i], image, shader);
-	}
+	// // end = std::chrono::high_resolution_clock::now();
+	// // duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    // // std::cout << "fragment: " << duration.count() << " milliseconds" << std::endl;
 
-	// end = std::chrono::high_resolution_clock::now();
-	// duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    // std::cout << "fragment: " << duration.count() << " milliseconds" << std::endl;
-
-	// std::cout << sizeof(Mesh) << std::endl;
-	// for (int i = 0; i < meshes.size(); i++) {
-	// 	std::vector<Triangle> triangles = vShader.transform(meshes[i], camera);
-	// 	for (int j = 0; j < triangles.size(); ++j) 
-	// 		draw_triangle(triangles[j], image, shader);
-	// }
-
-	image.write_tga_file("output.tga");
+	// image.write_tga_file("output.tga");
 
 	return 0;
 }

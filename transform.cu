@@ -1,6 +1,7 @@
 #include "transform.h"
 #include "transform_cuda.h"
 #include "debug.h"
+#include "primitive_cuda.cuh"
 #include <chrono>
 
 Transform::Transform(int w, int h, int d) {
@@ -124,19 +125,10 @@ std::vector<Vert> Transform::sutherlandHodgeman(Vert &v0, Vert &v1, Vert &v2) {
 }
 
 std::vector<Triangle> Transform::transform(Mesh &mesh) {
-	return transform(mesh, view);
-}
-
-std::vector<Triangle> Transform::transform(Mesh &mesh, Camera &camera) {
-	Matrix cam_view = lookAt(camera.position, camera.position+camera.front, camera.worldUp);
-	return transform(mesh, cam_view);
-}
-
-std::vector<Triangle> Transform::transform(Mesh &mesh, Matrix &m_view) {
 	Vert vert[3];
-	Matrix m_view_inv = m_view.transpose();
+	Matrix m_view_inv = view.transpose();
 	for (int i = 0; i < 3; ++i) {
-		Vec4f pos_view = m_view * model * Vec4f(mesh.poses[i]);
+		Vec4f pos_view = view * model * Vec4f(mesh.poses[i]);
 		vert[i].pos_view = pos_view.value();
 		vert[i].pos = persp * pos_view;
 		vert[i].norm = ((model_inv*m_view_inv).transpose()*Vec4f(mesh.norms[i], 0.0f)).value();
@@ -166,25 +158,26 @@ std::vector<Triangle> Transform::transform(Mesh &mesh, Matrix &m_view) {
 	return triangles;
 }
 
+std::vector<Triangle> Transform::transform(Mesh &mesh, Camera &camera) {
+	updateViewMatrix(camera);
+	return transform(mesh);
+}
+
 std::vector<Triangle> Transform::transform(std::vector<Vert> &verts) {
-	return transform(verts, view);
-}
-
-std::vector<Triangle> Transform::transform(std::vector<Vert> &verts, Camera &camera) {
-	Matrix cam_view = lookAt(camera.position, camera.position+camera.front, camera.worldUp);
-	return transform(verts, cam_view);
-}
-
-std::vector<Triangle> Transform::transform(std::vector<Vert> &verts, Matrix &m_view) {
 	std::vector<Triangle> triangles;
-	Matrix model_view = m_view * model;
-	Matrix model_view_inv_trans = (model_inv * (m_view.transpose())).transpose();
+	Matrix model_view = view * model;
+	Matrix model_view_inv_trans = (model_inv * (view.transpose())).transpose();
 	Matrix model_view_persp = persp * model_view;
 	for (int i = 0; i < verts.size() / 3; ++i) {
 	 	std::vector<Triangle> tri = transform(verts[3*i], verts[3*i+1], verts[3*i+2], model_view, model_view_inv_trans, model_view_persp);
 	 	triangles.insert(triangles.end(), tri.begin(), tri.end());
 	}
 	return triangles;
+}
+
+std::vector<Triangle> Transform::transform(std::vector<Vert> &verts, Camera &camera) {
+	updateViewMatrix(camera);
+	return transform(verts);
 }
 
 Vert Transform::transformVert(Vert &vert, Matrix &model_view, Matrix &model_view_inv_trans, Matrix &model_view_persp) {
@@ -230,103 +223,83 @@ std::vector<Triangle> Transform::transform(Vert &vert0, Vert &vert1, Vert &vert2
 	return triangles;
 }
 
-std::vector<Triangle> Transform::transformCuda(std::vector<Vert> &verts, Matrix &m_view) {
-	int num_verts = verts.size();
-	if (num_verts == 0) 	return {};
+std::vector<Triangle> Transform::transformCuda(std::vector<Vert> &verts, Camera &camera) {
+	updateViewMatrix(camera);
+	cudaUpdateMatrix();
+	return transformCuda(verts);
+}
 
-	auto start = std::chrono::high_resolution_clock::now();
-	Vert_cuda* d_verts;
-	cudaMalloc((void**)&d_verts, num_verts * sizeof(Vert));
-	cudaMemcpy(d_verts, verts.data(), num_verts * sizeof(Vert), cudaMemcpyHostToDevice);
-	auto end = std::chrono::high_resolution_clock::now();
-	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cout << "Send data to GPU: " << duration.count() << " milliseconds" << std::endl;
-
-	Matrix model_view = m_view * model;
-	Matrix model_view_inv_trans = (model_inv * (m_view.transpose())).transpose();
-	Matrix model_view_persp = persp * model_view;
-
-	float* d_model_view;
-    float* d_model_view_inv_trans;
-    float* d_model_view_persp;
-	float* d_vp;
-
-    cudaMalloc((void**)&d_model_view, sizeof(float) * 16);
-	cudaMalloc((void**)&d_model_view_inv_trans, sizeof(float) * 16);
-    cudaMalloc((void**)&d_model_view_persp, sizeof(float) * 16);
-	cudaMalloc((void**)&d_vp, sizeof(float) * 16);
-
-    cudaMemcpy(d_model_view, model_view.get_data(), sizeof(float) * 16, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_model_view_inv_trans, model_view_inv_trans.get_data(), sizeof(float) * 16, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_model_view_persp, model_view_persp.get_data(), sizeof(float) * 16, cudaMemcpyHostToDevice);
-	cudaMemcpy(d_vp, vp.get_data(), sizeof(float) * 16, cudaMemcpyHostToDevice);
-
-	const int clip_vert_num = 5;
-	int num_verts_rst = num_verts / 3 * clip_vert_num;
-	// int num_verts_rst = num_verts;
-	Vert* verts_rst = new Vert[num_verts_rst];
-	Vert_cuda* d_verts_rst;
-	cudaMalloc((void**)&d_verts_rst, num_verts_rst * sizeof(Vert));
-
-	bool* verts_rst_bool = new bool[num_verts_rst];
-	bool* d_verts_rst_bool;
-	cudaMalloc((void**)&d_verts_rst_bool, num_verts_rst * sizeof(bool));
-
+std::vector<Triangle> Transform::transformCuda(std::vector<Vert> &verts) {
 	dim3 grid_dim((num_verts-1)/128+1, 1, 1);
 	dim3 block_dim(128, 1, 1);
 
+	auto start = std::chrono::high_resolution_clock::now();
 	transformObjectToScreenKernal<<<grid_dim, block_dim>>>(
-		d_verts, d_model_view, d_model_view_inv_trans, d_model_view_persp, d_vp, d_verts_rst, d_verts_rst_bool, num_verts
+		(Vert_cuda*)d_verts, d_model_view, d_model_view_inv_trans, d_model_view_persp, d_vp, (Vert_cuda*)d_verts_rst, num_verts
 	);
 	cudaDeviceSynchronize();
 	
 	cudaMemcpy(verts_rst, d_verts_rst, num_verts_rst * sizeof(Vert), cudaMemcpyDeviceToHost);
-	cudaMemcpy(verts_rst_bool, d_verts_rst_bool, num_verts_rst * sizeof(bool), cudaMemcpyDeviceToHost);
+	auto end = std::chrono::high_resolution_clock::now();
+	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+	std::cout << "kernel function: " << duration.count() << " milliseconds" << std::endl;
 
+	std::vector<Triangle> triangles;
+	for (int i = 0; i < num_verts / 3; ++i) {
+		triangles.push_back(toTriangle(verts_rst[3*i], verts_rst[3*i+1], verts_rst[3*i+2]));
+	}
+
+	return triangles;
+}
+
+void Transform::cudaInit(std::vector<Vert> &verts) {
+	num_verts = verts.size();
+	num_verts_rst = num_verts;
+
+	Matrix model_view = view * model;
+	Matrix model_view_inv_trans = (model_inv * (view.transpose())).transpose();
+	Matrix model_view_persp = persp * model_view;
+
+	verts_rst = new Vert[num_verts_rst];
+
+	cudaMalloc((void**)&d_verts, num_verts * sizeof(Vert));
+	cudaMalloc((void**)&d_model_view, sizeof(float) * 16);
+	cudaMalloc((void**)&d_model_view_inv_trans, sizeof(float) * 16);
+    cudaMalloc((void**)&d_model_view_persp, sizeof(float) * 16);
+	cudaMalloc((void**)&d_vp, sizeof(float) * 16);
+	cudaMalloc((void**)&d_verts_rst, num_verts_rst * sizeof(Vert));
+
+	cudaMemcpy(d_verts, verts.data(), num_verts * sizeof(Vert), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_model_view, model_view.get_ptr(), sizeof(float) * 16, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_model_view_inv_trans, model_view_inv_trans.get_ptr(), sizeof(float) * 16, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_model_view_persp, model_view_persp.get_ptr(), sizeof(float) * 16, cudaMemcpyHostToDevice);
+	cudaMemcpy(d_vp, vp.get_ptr(), sizeof(float) * 16, cudaMemcpyHostToDevice);
+
+}
+
+void Transform::cudaUpdateMatrix() {
+	Matrix model_view = view * model;
+	Matrix model_view_inv_trans = (model_inv * (view.transpose())).transpose();
+	Matrix model_view_persp = persp * model_view;
+
+	cudaMemcpy(d_model_view, model_view.get_ptr(), sizeof(float) * 16, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_model_view_inv_trans, model_view_inv_trans.get_ptr(), sizeof(float) * 16, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_model_view_persp, model_view_persp.get_ptr(), sizeof(float) * 16, cudaMemcpyHostToDevice);
+}
+
+void Transform::cudaRelease() {
 	cudaFree(d_verts);
 	cudaFree(d_model_view);
 	cudaFree(d_model_view_inv_trans);	
 	cudaFree(d_model_view_persp);
 	cudaFree(d_vp);
 	cudaFree(d_verts_rst);
-	cudaFree(d_verts_rst_bool);
-
-
-	std::cout << "Cuda Finish" << std::endl;
-
-	// for (int i = 0; i < num_verts_rst; ++i) {
-	// 	if (i%5==0||i%5==1||i%5==2) {
-	// 		verts_rst_bool[i] = true;
-	// 	} else {
-	// 		verts_rst_bool[i] = false;
-	// 	}
-	// }
-
-	// outputVert(verts_rst[0]);
-	// outputVert(verts_rst[1]);
-	// outputVert(verts_rst[2]);
-
-	std::vector<Triangle> triangles;
-	for (int i = 0; i < num_verts / 3; ++i) {
-		triangles.push_back(toTriangle(verts_rst[3*i], verts_rst[3*i+1], verts_rst[3*i+2]));
-	}
-	
 	delete[] verts_rst;
-	delete[] verts_rst_bool;
-
-	return triangles;
-} 
-
-std::vector<Triangle> Transform::transformCuda(std::vector<Vert> &verts) {
-	return transformCuda(verts, view);
 }
 
-void Transform::cudaInit() {
-
-}
-
-void Transform::cudaRelease() {
-
+void Transform::updateViewMatrix(Camera &camera) {
+	Matrix cam_view = lookAt(camera.position, camera.position+camera.front, camera.worldUp);
+	this->view = cam_view;
 }
 
 void Transform::test() {
