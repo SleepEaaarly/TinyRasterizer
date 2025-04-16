@@ -8,11 +8,15 @@ class Rasterizer {
 private:
     Shader *shader;
     Buffer *z_buffer;
-    Vert* d_verts_rst;
-    float* d_z_buffer;
-    float* d_image;
+    TGAImage *image;
 
-    void drawTriangle(Triangle &tri, TGAImage &image);
+    // cuda pointers
+    Vert* d_verts_scr;
+    float* d_z_buffer;
+    unsigned char* d_image;
+    int num_verts_scr;
+
+    void drawTriangle(Triangle &tri);
     Vec3f barycentric(Vec3f *t, Vec2f p);
     void zeroCheck(Vec3f &depth);
     float depth_persp_interpolate(Vec3f depth, Vec3f &lambda);
@@ -21,13 +25,13 @@ private:
 
 
 public:
-    Rasterizer(Shader &shader, Buffer &z_buffer);
-    void rasterizeTriangles(std::vector<Triangle> &triangles, TGAImage &image);
+    Rasterizer(Shader &shader, Buffer &z_buffer, TGAImage &image);
+    void rasterizeTriangles(std::vector<Triangle> &triangles);
     
-    void cudaInit(Vert* d_verts_rst_in);
+    void cudaInit(Vert* d_verts_rst_in, int num_verts_rst);
     void cudaRelease();
     void cudaUpdateZBuffer();
-    void rasterizeVertsCuda(TGAImage &image);
+    void rasterizeVertsCuda();
 };  
 
 #endif

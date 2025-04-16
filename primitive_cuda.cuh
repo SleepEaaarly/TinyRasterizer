@@ -27,6 +27,44 @@ struct Vert_cuda {
     __device__ Vert_cuda() {}
 };
 
+struct Vec2i_cuda {
+    int x;
+    int y;
+    __device__ Vec2i_cuda() {}
+    __device__ Vec2i_cuda(int x_in, int y_in) : x(x_in), y(y_in) {}
+};
+
+struct Fragment_cuda {
+    Vec2i_cuda pos;
+    Vec2f_cuda tex;
+    Vec3f_cuda norm;
+    Vec3f_cuda pos_view;
+    float z;
+    __device__ Fragment_cuda() {}
+    __device__ Fragment_cuda(Vec2i_cuda &pos, Vec2f_cuda &tex, Vec3f_cuda &norm, Vec3f_cuda &pos_view, float z) {
+        this->pos = pos;
+        this->tex = tex;
+        this->norm = norm;
+        this->pos_view = pos_view;
+        this->z = z;
+    }
+};
+
+struct Color_cuda {
+	union {
+		struct {
+			unsigned char b, g, r, a;
+		};
+		unsigned char raw[4];
+		unsigned int val;
+	};
+    __device__ Color_cuda() : val(0) {
+	}
+
+	__device__ Color_cuda(unsigned char R, unsigned char G, unsigned char B, unsigned char A) : b(B), g(G), r(R), a(A) {
+	}
+};
+
 struct Triangle_cuda {
     Vec3f_cuda poses[3];
     Vec2f_cuda texs[3];

@@ -1,9 +1,6 @@
 #ifndef TRANSFORM_CUDA_H
 #define TRANSFORM_CUDA_H
 
-#include <cuda_runtime.h>
-#include "geometry.h"
-#include "primitive.h"
 #include "primitive_cuda.cuh"
 #include <stdio.h>
 

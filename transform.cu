@@ -1,7 +1,6 @@
 #include "transform.h"
-#include "transform_cuda.h"
+#include "transform_cuda.cuh"
 #include "debug.h"
-#include "primitive_cuda.cuh"
 #include <chrono>
 
 Transform::Transform(int w, int h, int d) {
@@ -300,6 +299,14 @@ void Transform::cudaRelease() {
 void Transform::updateViewMatrix(Camera &camera) {
 	Matrix cam_view = lookAt(camera.position, camera.position+camera.front, camera.worldUp);
 	this->view = cam_view;
+}
+
+Vert* Transform::getDeviceVertsRstPtr() {
+	return d_verts_rst;
+}
+
+int Transform::getDeviceVertsRstNum() {
+	return num_verts_rst;
 }
 
 void Transform::test() {

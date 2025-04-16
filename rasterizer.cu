@@ -1,23 +1,26 @@
 #include "rasterizer.h"
+#include "rasterizer_cuda.cuh"
+#include <chrono>
 
-Rasterizer::Rasterizer(Shader &shader, Buffer &z_buffer) {
+Rasterizer::Rasterizer(Shader &shader, Buffer &z_buffer, TGAImage &image) {
     this->shader = &shader;
     this->z_buffer = &z_buffer;
+	this->image = &image;
 }
 
-void Rasterizer::rasterizeTriangles(std::vector<Triangle> &triangles, TGAImage &image) {
+void Rasterizer::rasterizeTriangles(std::vector<Triangle> &triangles) {
     for (int i = 0; i < triangles.size(); ++i) {
-        drawTriangle(triangles[i], image);
+        drawTriangle(triangles[i]);
     }
 }
 
-void Rasterizer::drawTriangle(Triangle &tri, TGAImage &image) {
+void Rasterizer::drawTriangle(Triangle &tri) {
     Vec3f *pts = tri.poses;
 	Vec2f *texs = tri.texs;
 	Vec3f *norms = tri.norms;
 	Vec3f *pos_views = tri.poses_view;
-    int width = image.get_width();
-    int height = image.get_height();
+    int width = image->get_width();
+    int height = image->get_height();
 	int bboxmin_x = std::max(0, static_cast<int>(std::min(pts[0].x, std::min(pts[1].x, pts[2].x))));
 	int bboxmax_x = std::min(width-1, static_cast<int>(std::max(pts[0].x, std::max(pts[1].x, pts[2].x))));
 	int bboxmin_y = std::max(0, static_cast<int>(std::min(pts[0].y, std::min(pts[1].y, pts[2].y))));
@@ -36,7 +39,7 @@ void Rasterizer::drawTriangle(Triangle &tri, TGAImage &image) {
 				if (z < z_buffer->get(x, y)) {
 					Fragment frag(Vec2i(x,y), tex_coord, norm, pos_view);
 					// window.drawPixel(x, y, shader.shadeFragment(frag));
-					image.set(x, y, shader->shadeFragment(frag));
+					image->set(x, y, shader->shadeFragment(frag));
 					z_buffer->set(x, y, z);
 				}
 			}
@@ -82,12 +85,16 @@ Vec3f Rasterizer::vec3_persp_interpolate(Vec3f* vec3_arr, float depth, Vec3f dep
 	return vec3;
 }
 
-void Rasterizer::cudaInit(Vert *d_verts_rst_in) {
-	d_verts_rst = d_verts_rst_in;
+void Rasterizer::cudaInit(Vert *d_verts_rst_in, int num_verts_rst) {
+	d_verts_scr = d_verts_rst_in;
+	num_verts_scr = num_verts_rst;
 
+	int image_size = image->get_width() * image->get_height() * image->get_bytespp();
 	int buf_size = z_buffer->getWidth() * z_buffer->getHeight();
 	cudaMalloc((void**)&d_z_buffer, buf_size*sizeof(float));
 	// no need to cpy z_buffer data cause we will init z_buffer in kernel
+	cudaMalloc((void**)&d_image, image_size*sizeof(unsigned char));
+	// no need to cpy image data cause we will init image in kernel
 }
 
 void Rasterizer::cudaUpdateZBuffer() {
@@ -98,13 +105,24 @@ void Rasterizer::cudaUpdateZBuffer() {
 void Rasterizer::cudaRelease() {
 	// d_verts_rst has been released in Transform
 	cudaFree(d_z_buffer);
+	cudaFree(d_image);
 }
 
-void Rasterizer::rasterizeVertsCuda(TGAImage &image) {
-	int width = image.get_width();
-	int height = image.get_height();
+void Rasterizer::rasterizeVertsCuda() {
+	int width = image->get_width();
+	int height = image->get_height();
+	int bytespp = image->get_bytespp();
 	dim3 grid_dim((width-1)/16+1, (height-1)/16+1, 1);
 	dim3 block_dim(16, 16, 1);
-
 	
+	auto start = std::chrono::high_resolution_clock::now();
+	rasterization<<<grid_dim, block_dim>>>((Vert_cuda*)d_verts_scr, num_verts_scr, d_image, d_z_buffer, width, height, bytespp);
+	cudaDeviceSynchronize();
+	auto end = std::chrono::high_resolution_clock::now();
+	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+	std::cout << "kernel function in rasterizer: " << duration.count() << " milliseconds" << std::endl;
+
+	int image_size = width * height * bytespp;
+	cudaMemcpy(image->buffer(), d_image, image_size * sizeof(unsigned char), cudaMemcpyDeviceToHost);
+
 }

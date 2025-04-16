@@ -1,5 +1,4 @@
-#include "transform_cuda.h"
-#include "primitive_cuda.cuh"
+#include "transform_cuda.cuh"
 
 __global__ void test_cuda(Vert_cuda* ptr) {
     printf("%f\n", ptr->pos.x);
@@ -74,6 +73,37 @@ __device__ void transformObjectToClip(Vert_cuda* verts, float* model_view, float
                           verts[i].norm.z * model_view_inv_trans[10];      
 }
 
+__device__ void transformClipToScreen(Vert_cuda* vert_rst, float* vp, int i) {
+    float w = vert_rst[i].pos.w;
+    if (w < 1e-6f && w > 0.f) {
+        w = 1e-6f;
+    } else if (w > -1e-6f && w < 0.f) {
+        w = -1e-6f;
+    }
+    // clip
+    vert_rst[i].pos.x = vert_rst[i].pos.x / w;
+    vert_rst[i].pos.y = vert_rst[i].pos.y / w;
+    vert_rst[i].pos.z = vert_rst[i].pos.z / w;
+    vert_rst[i].pos.w = 1.f;
+    // viewport transform
+    float x = vert_rst[i].pos.x;
+    float y = vert_rst[i].pos.y;
+    float z = vert_rst[i].pos.z;
+    vert_rst[i].pos.x = x * vp[0] + 
+                        y * vp[1] +
+                        z * vp[2] + 
+                        vp[3];
+    vert_rst[i].pos.y = x * vp[4] + 
+                        y * vp[5] +
+                        z * vp[6] + 
+                        vp[7];
+    vert_rst[i].pos.z = x * vp[8] + 
+                        y * vp[9] +
+                        z * vp[10] + 
+                        vp[11];
+    
+}
+
 __device__ void sutherland_hodgeman(Vert_cuda* verts, bool* marks) {
     Vec4f_cuda clip_planes[2] = {
         Vec4f_cuda(0.f, 0.f, 1.f, 1.f),
@@ -118,37 +148,6 @@ __device__ void sutherland_hodgeman(Vert_cuda* verts, bool* marks) {
     for (int i = output_size; i < 5; ++i) {
         marks[i] = false;
     }
-}
-
-__device__ void transformClipToScreen(Vert_cuda* vert_rst, float* vp, int i) {
-    float w = vert_rst[i].pos.w;
-    if (w < 1e-6f && w > 0.f) {
-        w = 1e-6f;
-    } else if (w > -1e-6f && w < 0.f) {
-        w = -1e-6f;
-    }
-    // clip
-    vert_rst[i].pos.x = vert_rst[i].pos.x / w;
-    vert_rst[i].pos.y = vert_rst[i].pos.y / w;
-    vert_rst[i].pos.z = vert_rst[i].pos.z / w;
-    vert_rst[i].pos.w = 1.f;
-    // viewport transform
-    float x = vert_rst[i].pos.x;
-    float y = vert_rst[i].pos.y;
-    float z = vert_rst[i].pos.z;
-    vert_rst[i].pos.x = x * vp[0] + 
-                        y * vp[1] +
-                        z * vp[2] + 
-                        vp[3];
-    vert_rst[i].pos.y = x * vp[4] + 
-                        y * vp[5] +
-                        z * vp[6] + 
-                        vp[7];
-    vert_rst[i].pos.z = x * vp[8] + 
-                        y * vp[9] +
-                        z * vp[10] + 
-                        vp[11];
-    
 }
 
 __device__ bool inside_way_plane(Vert_cuda *v, Vec4f_cuda *plane) {

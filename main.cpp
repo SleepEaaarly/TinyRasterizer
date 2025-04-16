@@ -127,7 +127,7 @@ int main(int argc, char** argv) {
 
 	Camera camera;
 	Transform vShader(WIDTH, HEIGHT, z_buffer.getUpperRange());
-
+	Rasterizer rasterizer(shader, z_buffer, image);
 	// std::vector<Mesh> meshes = model->getMeshes();
 	std::vector<Vert> verts = model->getVerts();
 	if (verts.size() == 0) {
@@ -165,6 +165,7 @@ int main(int argc, char** argv) {
 	// std::cout << "cpu: " << duration.count() << " milliseconds" << std::endl;
 
 	vShader.cudaInit(verts);
+	rasterizer.cudaInit(vShader.getDeviceVertsRstPtr(), vShader.getDeviceVertsRstNum());
 
 	auto start = std::chrono::high_resolution_clock::now();
 	triangles = vShader.transformCuda(verts);	
@@ -173,11 +174,9 @@ int main(int argc, char** argv) {
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cout << "cuda: " << duration.count() << " milliseconds" << std::endl;
 
-	vShader.cudaRelease();
-
-	Rasterizer rasterizer(shader, z_buffer);
 	start = std::chrono::high_resolution_clock::now();
-	rasterizer.rasterizeTriangles(triangles, image);
+	rasterizer.rasterizeVertsCuda();
+	// rasterizer.rasterizeTriangles(triangles);
 	// for (int i = 0; i < triangles.size(); ++i) {
 	// 	draw_triangle(triangles[i], image, shader);
 	// }
@@ -186,6 +185,9 @@ int main(int argc, char** argv) {
 	duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cout << "fragment: " << duration.count() << " milliseconds" << std::endl;
 	
+	vShader.cudaRelease();
+	rasterizer.cudaRelease();
+
 	image.write_tga_file("output.tga");
 
 	return 0;
