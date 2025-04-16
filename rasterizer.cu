@@ -81,3 +81,30 @@ Vec3f Rasterizer::vec3_persp_interpolate(Vec3f* vec3_arr, float depth, Vec3f dep
 	Vec3f vec3 = depth*(lambda[0]*vec3_arr[0]/depth_arr[0]+lambda[1]*vec3_arr[1]/depth_arr[1]+lambda[2]*vec3_arr[2]/depth_arr[2]);
 	return vec3;
 }
+
+void Rasterizer::cudaInit(Vert *d_verts_rst_in) {
+	d_verts_rst = d_verts_rst_in;
+
+	int buf_size = z_buffer->getWidth() * z_buffer->getHeight();
+	cudaMalloc((void**)&d_z_buffer, buf_size*sizeof(float));
+	// no need to cpy z_buffer data cause we will init z_buffer in kernel
+}
+
+void Rasterizer::cudaUpdateZBuffer() {
+	int buf_size = z_buffer->getWidth() * z_buffer->getHeight();
+	cudaMemcpy(z_buffer->getBufPtr(), d_z_buffer, buf_size * sizeof(float), cudaMemcpyDeviceToHost);
+}
+
+void Rasterizer::cudaRelease() {
+	// d_verts_rst has been released in Transform
+	cudaFree(d_z_buffer);
+}
+
+void Rasterizer::rasterizeVertsCuda(TGAImage &image) {
+	int width = image.get_width();
+	int height = image.get_height();
+	dim3 grid_dim((width-1)/16+1, (height-1)/16+1, 1);
+	dim3 block_dim(16, 16, 1);
+
+	
+}

@@ -25,6 +25,9 @@ public:
     void set(int x, int y, float v);
     float getUpperRange();
     void clearBuffer();
+    float* getBufPtr();
+    int getWidth();
+    int getHeight();
 };
 
 #endif

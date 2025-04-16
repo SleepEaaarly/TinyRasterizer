@@ -29,6 +29,14 @@ Color TextureShader::shadeFragment(Fragment &frag) {
     return texture->get_color(frag.tex[0], frag.tex[1]);
 }
 
+Texture* TextureShader::getTexturePtr() {
+    return texture;
+}
+
+Light* TextureShader::getLightPtr() {
+    return nullptr;
+}
+
 PhongShader::PhongShader(){}
 PhongShader::PhongShader(Texture &tex, Light &l) {
     setTexture(tex);
@@ -41,6 +49,14 @@ void PhongShader::setTexture(Texture &tex) {
 
 void PhongShader::setLight(Light &l) {
     light = &l;
+}
+
+Texture* PhongShader::getTexturePtr() {
+    return texture;
+}
+
+Light* PhongShader::getLightPtr() {
+    return light;
 }
 
 Color PhongShader::shadeFragment(Fragment &frag) {

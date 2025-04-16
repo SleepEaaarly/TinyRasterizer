@@ -8,6 +8,10 @@ class Rasterizer {
 private:
     Shader *shader;
     Buffer *z_buffer;
+    Vert* d_verts_rst;
+    float* d_z_buffer;
+    float* d_image;
+
     void drawTriangle(Triangle &tri, TGAImage &image);
     Vec3f barycentric(Vec3f *t, Vec2f p);
     void zeroCheck(Vec3f &depth);
@@ -19,8 +23,11 @@ private:
 public:
     Rasterizer(Shader &shader, Buffer &z_buffer);
     void rasterizeTriangles(std::vector<Triangle> &triangles, TGAImage &image);
-
-
+    
+    void cudaInit(Vert* d_verts_rst_in);
+    void cudaRelease();
+    void cudaUpdateZBuffer();
+    void rasterizeVertsCuda(TGAImage &image);
 };  
 
 #endif

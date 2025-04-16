@@ -13,6 +13,8 @@ public:
     ~Shader();
     virtual void setTexture(Texture &texture) = 0;
     virtual Color shadeFragment(Fragment &frag) = 0;
+    virtual Texture* getTexturePtr() = 0;
+    virtual Light* getLightPtr() = 0;
     // Color shadeNormal();
 };
 
@@ -24,6 +26,8 @@ public:
     TextureShader(Texture &tex);
     void setTexture(Texture &tex) override;
     Color shadeFragment(Fragment &frag) override;
+    Texture* getTexturePtr() override;
+    Light* getLightPtr() override;
 };
 
 
@@ -38,6 +42,8 @@ public:
     void setLight(Light &l);
     void setTexture(Texture &texture) override;
     Color shadeFragment(Fragment &frag) override;
+    Texture* getTexturePtr() override;
+    Light* getLightPtr() override;
 };
 
 #endif

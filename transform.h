@@ -61,6 +61,7 @@ public:
 	std::vector<Triangle> transform(std::vector<Vert> &verts, Camera &camera);
 	std::vector<Triangle> transformCuda(std::vector<Vert> &verts);
 	std::vector<Triangle> transformCuda(std::vector<Vert> &verts, Camera &camera);
+	Vert* getDeviceVertsRstPtr();
 	void cudaInit(std::vector<Vert> &verts);
 	void cudaRelease();
 	void test();

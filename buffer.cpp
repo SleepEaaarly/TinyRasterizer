@@ -42,3 +42,15 @@ float Buffer::getUpperRange() {
 void Buffer::clearBuffer() {
     set_limit_value();
 }
+
+float* Buffer::getBufPtr() {
+    return buf;
+}
+
+int Buffer::getWidth() {
+    return width;
+}
+
+int Buffer::getHeight() {
+    return height;
+}

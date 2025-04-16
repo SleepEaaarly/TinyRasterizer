@@ -156,10 +156,6 @@ int main(int argc, char** argv) {
 	z_buffer.clearBuffer();
 
 	std::vector<Triangle> triangles;
-	
-	// vShader.test();
-	// std::cout << sizeof(Vert) << std::endl;
-	// exit(-1);
 
 	// auto start = std::chrono::high_resolution_clock::now();
 	// triangles = vShader.transform(verts);
