@@ -1,22 +1,27 @@
 #ifndef PRIMITIVE_CUDA_CUH
 #define PRIMITIVE_CUDA_CUH
 
-struct Vec4f_cuda {
-    float x, y, z, w;
-    __device__ Vec4f_cuda() {}
-    __device__ Vec4f_cuda(float x_in, float y_in, float z_in, float w_in) { x=x_in; y=y_in; z=z_in; w=w_in; }
+struct Vec2f_cuda {
+    float x, y;
+    __device__ Vec2f_cuda() {}
+    __device__ Vec2f_cuda(float x_in, float y_in) { x=x_in; y=y_in; }
 };
 
 struct Vec3f_cuda {
     float x, y, z;
     __device__ Vec3f_cuda() {}
     __device__ Vec3f_cuda(float x_in, float y_in, float z_in) { x=x_in; y=y_in; z=z_in; }
+    __device__ Vec3f_cuda normalize() { 
+        float rev_norm = rsqrtf(x*x+y*y+z*z);
+        return Vec3f_cuda(x*rev_norm, y*rev_norm, z*rev_norm);
+    }  
 };
 
-struct Vec2f_cuda {
-    float x, y;
-    __device__ Vec2f_cuda() {}
-    __device__ Vec2f_cuda(float x_in, float y_in) { x=x_in; y=y_in; }
+struct Vec4f_cuda {
+    float x, y, z, w;
+    __device__ Vec4f_cuda() {}
+    __device__ Vec4f_cuda(float x_in, float y_in, float z_in, float w_in) { x=x_in; y=y_in; z=z_in; w=w_in; }
+    __device__ Vec3f_cuda value() { return Vec3f_cuda(x, y, z); }
 };
 
 struct Vert_cuda {

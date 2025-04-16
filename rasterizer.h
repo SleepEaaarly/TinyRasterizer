@@ -10,11 +10,15 @@ private:
     Buffer *z_buffer;
     TGAImage *image;
 
+
     // cuda pointers
     Vert* d_verts_scr;
     float* d_z_buffer;
     unsigned char* d_image;
+    unsigned char* d_texture;
     int num_verts_scr;
+    Vec3f* d_light_color;
+    Vec3f* d_light_dir;
 
     void drawTriangle(Triangle &tri);
     Vec3f barycentric(Vec3f *t, Vec2f p);

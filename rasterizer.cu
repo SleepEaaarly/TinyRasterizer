@@ -91,10 +91,22 @@ void Rasterizer::cudaInit(Vert *d_verts_rst_in, int num_verts_rst) {
 
 	int image_size = image->get_width() * image->get_height() * image->get_bytespp();
 	int buf_size = z_buffer->getWidth() * z_buffer->getHeight();
+	TGAImage *texture_image = shader->getTexturePtr()->getImagePtr();
+	int texture_size = texture_image->get_width() * texture_image->get_height() * texture_image->get_bytespp();
 	cudaMalloc((void**)&d_z_buffer, buf_size*sizeof(float));
 	// no need to cpy z_buffer data cause we will init z_buffer in kernel
 	cudaMalloc((void**)&d_image, image_size*sizeof(unsigned char));
 	// no need to cpy image data cause we will init image in kernel
+	cudaMalloc((void**)&d_texture, texture_size*sizeof(unsigned char));
+	cudaMemcpy(d_texture, texture_image->buffer(), texture_size*sizeof(unsigned char), cudaMemcpyHostToDevice);
+
+	Light *light = shader->getLightPtr();
+
+	cudaMalloc((void**)&d_light_color, sizeof(Vec3f));
+	cudaMalloc((void**)&d_light_dir, sizeof(Vec3f));
+	cudaMemcpy(d_light_color, &light->color, sizeof(Vec3f), cudaMemcpyHostToDevice);
+	cudaMemcpy(d_light_dir, &light->dir, sizeof(Vec3f), cudaMemcpyHostToDevice);
+
 }
 
 void Rasterizer::cudaUpdateZBuffer() {
@@ -106,21 +118,28 @@ void Rasterizer::cudaRelease() {
 	// d_verts_rst has been released in Transform
 	cudaFree(d_z_buffer);
 	cudaFree(d_image);
+	cudaFree(d_texture);
 }
 
 void Rasterizer::rasterizeVertsCuda() {
 	int width = image->get_width();
 	int height = image->get_height();
 	int bytespp = image->get_bytespp();
+	TGAImage *texture_image = shader->getTexturePtr()->getImagePtr();
+	int tex_width = texture_image->get_width();
+	int tex_height = texture_image->get_height();
+	int tex_bytespp = texture_image->get_bytespp();
+
 	dim3 grid_dim((width-1)/16+1, (height-1)/16+1, 1);
 	dim3 block_dim(16, 16, 1);
 	
 	auto start = std::chrono::high_resolution_clock::now();
-	rasterization<<<grid_dim, block_dim>>>((Vert_cuda*)d_verts_scr, num_verts_scr, d_image, d_z_buffer, width, height, bytespp);
+	rasterization<<<grid_dim, block_dim>>>((Vert_cuda*)d_verts_scr, num_verts_scr, d_image, d_z_buffer, width, height, bytespp, 
+											d_texture, tex_width, tex_height, tex_bytespp, (Vec3f_cuda*)d_light_color, (Vec3f_cuda*)d_light_dir);
 	cudaDeviceSynchronize();
 	auto end = std::chrono::high_resolution_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-	std::cout << "kernel function in rasterizer: " << duration.count() << " milliseconds" << std::endl;
+	std::cout << "fragment kernel function in rasterizer: " << duration.count() << " milliseconds" << std::endl;
 
 	int image_size = width * height * bytespp;
 	cudaMemcpy(image->buffer(), d_image, image_size * sizeof(unsigned char), cudaMemcpyDeviceToHost);

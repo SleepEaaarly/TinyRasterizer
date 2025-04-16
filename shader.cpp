@@ -10,7 +10,7 @@ Color Float2Uchar(Vec4f f) {
     y = std::max(0.f, std::min(1.f, f.y));
     z = std::max(0.f, std::min(1.f, f.z));
     w = std::max(0.f, std::min(1.f, f.w));
-    return Color((unsigned char)(x*255+.49f), (unsigned char)(y*255+.49f), (unsigned char)(z*255+.49f), (unsigned char)(w*255+.49f));
+    return Color((unsigned char)(x*255+.5f), (unsigned char)(y*255+.5f), (unsigned char)(z*255+.5f), (unsigned char)(w*255+.5f));
 }
 
 

@@ -59,8 +59,8 @@ public:
 	std::vector<Triangle> transform(Mesh &mesh, Camera &camera);
 	std::vector<Triangle> transform(std::vector<Vert> &verts);
 	std::vector<Triangle> transform(std::vector<Vert> &verts, Camera &camera);
-	std::vector<Triangle> transformCuda(std::vector<Vert> &verts);
-	std::vector<Triangle> transformCuda(std::vector<Vert> &verts, Camera &camera);
+	void transformCuda(std::vector<Vert> &verts);
+	void transformCuda(std::vector<Vert> &verts, Camera &camera);
 	Vert* getDeviceVertsRstPtr();
 	int getDeviceVertsRstNum();
 	void cudaInit(std::vector<Vert> &verts);

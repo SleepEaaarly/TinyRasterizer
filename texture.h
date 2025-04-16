@@ -12,5 +12,6 @@ public:
     Texture(const char *filename);
     ~Texture();
     Color get_color(float u, float v);
+    TGAImage *getImagePtr();
 };
 #endif

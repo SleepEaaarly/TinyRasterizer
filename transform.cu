@@ -222,13 +222,13 @@ std::vector<Triangle> Transform::transform(Vert &vert0, Vert &vert1, Vert &vert2
 	return triangles;
 }
 
-std::vector<Triangle> Transform::transformCuda(std::vector<Vert> &verts, Camera &camera) {
+void Transform::transformCuda(std::vector<Vert> &verts, Camera &camera) {
 	updateViewMatrix(camera);
 	cudaUpdateMatrix();
-	return transformCuda(verts);
+	transformCuda(verts);
 }
 
-std::vector<Triangle> Transform::transformCuda(std::vector<Vert> &verts) {
+void Transform::transformCuda(std::vector<Vert> &verts) {
 	dim3 grid_dim((num_verts-1)/128+1, 1, 1);
 	dim3 block_dim(128, 1, 1);
 
@@ -241,14 +241,8 @@ std::vector<Triangle> Transform::transformCuda(std::vector<Vert> &verts) {
 	cudaMemcpy(verts_rst, d_verts_rst, num_verts_rst * sizeof(Vert), cudaMemcpyDeviceToHost);
 	auto end = std::chrono::high_resolution_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-	std::cout << "kernel function: " << duration.count() << " milliseconds" << std::endl;
+	std::cout << "vertex kernel function: " << duration.count() << " milliseconds" << std::endl;
 
-	std::vector<Triangle> triangles;
-	for (int i = 0; i < num_verts / 3; ++i) {
-		triangles.push_back(toTriangle(verts_rst[3*i], verts_rst[3*i+1], verts_rst[3*i+2]));
-	}
-
-	return triangles;
 }
 
 void Transform::cudaInit(std::vector<Vert> &verts) {

@@ -168,11 +168,11 @@ int main(int argc, char** argv) {
 	rasterizer.cudaInit(vShader.getDeviceVertsRstPtr(), vShader.getDeviceVertsRstNum());
 
 	auto start = std::chrono::high_resolution_clock::now();
-	triangles = vShader.transformCuda(verts);	
-	std::cout << triangles.size() << std::endl;
+	vShader.transformCuda(verts, camera);	
+	// std::cout << triangles.size() << std::endl;
 	auto end = std::chrono::high_resolution_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cout << "cuda: " << duration.count() << " milliseconds" << std::endl;
+    std::cout << "vertex: " << duration.count() << " milliseconds" << std::endl;
 
 	start = std::chrono::high_resolution_clock::now();
 	rasterizer.rasterizeVertsCuda();

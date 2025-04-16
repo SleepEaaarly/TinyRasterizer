@@ -14,5 +14,9 @@ Texture::~Texture()
 Color Texture::get_color(float u, float v) {
     int width = image.get_width();
     int height = image.get_height();
-    return image.get((int)(u * width + .5), (int)(v * height + .5));
+    return image.get((int)(u * width), (int)(v * height));
+}
+
+TGAImage* Texture::getImagePtr() {
+    return &image;
 }

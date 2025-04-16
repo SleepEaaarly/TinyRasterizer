@@ -1,6 +1,7 @@
 #include "rasterizer_cuda.cuh"
 
-__global__ void rasterization(Vert_cuda *verts, int verts_size, unsigned char *image, float *z_buffer, int width, int height, int bytespp) {
+__global__ void rasterization(Vert_cuda *verts, int verts_size, unsigned char *image, float *z_buffer, int width, int height, int bytespp, 
+                                unsigned char *texture, int tex_width, int tex_height, int tex_bytespp, Vec3f_cuda *light_color, Vec3f_cuda *light_dir) {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -33,7 +34,8 @@ __global__ void rasterization(Vert_cuda *verts, int verts_size, unsigned char *i
             Fragment_cuda frag = perspInterpolate(vert0, vert1, vert2, lambda, col, row);
             float z = frag.z;
             if (z < z_buffer[idx]) {
-                Color_cuda c = Color_cuda(255, 0, 0, 0);
+                z_buffer[idx] = z;
+                Color_cuda c = BlinnPhongShade(frag, texture, tex_width, tex_height, tex_bytespp, light_color, light_dir);
                 setPixel(col, row, c, image, width, bytespp);
             }
         }
@@ -89,4 +91,64 @@ __device__ void setPixel(int x, int y, Color_cuda &c, unsigned char* image, int 
     for (int i = 0; i < bytespp; ++i) {
         image[st+i] = c.raw[i];
     }
+}
+
+__device__ Color_cuda getTextureColor(unsigned char* texture, int tex_width, int tex_height, int tex_bytespp, float u, float v) {
+    int x = (int)(u * tex_width);
+    int y = (int)(v * tex_height);
+    if (!texture || x<0 || y<0 || x>=tex_width || y>=tex_height) {
+		return Color_cuda();
+	}
+    Color_cuda rst;
+    int st = (x+y*tex_width)*tex_bytespp;
+    for (int i = 0; i < tex_bytespp; ++i) {
+        rst.raw[i] = texture[st+i];
+    }
+    return rst;
+}
+
+__device__ Color_cuda BlinnPhongShade(Fragment_cuda &frag, unsigned char* texture, int tex_width, int tex_height, int tex_bytespp, Vec3f_cuda* light_color, Vec3f_cuda* light_dir) {
+    Color_cuda tex_color = getTextureColor(texture, tex_width, tex_height, tex_bytespp, frag.tex.x, frag.tex.y);
+    Vec3f_cuda ka = Vec3f_cuda(0.005, 0.005, 0.005);
+    Vec3f_cuda kd = CudaUchar2Float(tex_color).value();
+    Vec3f_cuda ks = Vec3f_cuda(0.5, 0.5, 0.5);
+
+    Vec3f_cuda ambient(ka.x*light_color->x, ka.y*light_color->y, ka.z*light_color->z);
+
+    Vec3f_cuda vec_l = Vec3f_cuda(-light_dir->x, -light_dir->y, -light_dir->z);
+    float NdotL = vec_l.x * frag.norm.x + vec_l.y * frag.norm.y + vec_l.z * frag.norm.z;
+    float diff = fmaxf(0.f, NdotL);
+    Vec3f_cuda diffuse(kd.x*light_color->x*diff, kd.y*light_color->y*diff, kd.z*light_color->z*diff);
+
+    float p = 128.f;
+    Vec3f_cuda vec_v(-frag.pos_view.x, -frag.pos_view.y, -frag.pos_view.z);
+    Vec3f_cuda vec_h = vec3f_add(vec_v, vec_l).normalize();
+    float NdotH = frag.norm.x * vec_h.x + frag.norm.y * vec_h.y + frag.norm.z * vec_h.z;
+    float spec = fmaxf(0.f, powf(NdotH, p));
+    Vec3f_cuda specular(ks.x*light_color->x*spec, ks.y*light_color->y*spec, ks.z*light_color->z*spec);
+
+    Vec3f_cuda rst = vec3f_add(vec3f_add(ambient, diffuse), specular);
+
+    return CudaFloat2Uchar(Vec4f_cuda(rst.x, rst.y, rst.z, 1.0f));
+}
+
+__device__ Vec3f_cuda vec3f_add(Vec3f_cuda &v0, Vec3f_cuda &v1) {
+    Vec3f_cuda rst;
+    rst.x = v0.x + v1.x;
+    rst.y = v0.y + v1.y;
+    rst.z = v0.z + v1.z;
+    return rst;
+}
+
+__device__ Vec4f_cuda CudaUchar2Float(Color_cuda c) {
+    return Vec4f_cuda(c.r/255., c.g/255., c.b/255., c.a/255.);
+}
+
+__device__ Color_cuda CudaFloat2Uchar(Vec4f_cuda f) {
+    float x, y, z, w;
+    x = fmaxf(0.f, fminf(1.f, f.x));
+    y = fmaxf(0.f, fminf(1.f, f.y));
+    z = fmaxf(0.f, fminf(1.f, f.z));
+    w = fmaxf(0.f, fminf(1.f, f.w));
+    return Color_cuda((unsigned char)(x*255+.5f), (unsigned char)(y*255+.5f), (unsigned char)(z*255+.5f), (unsigned char)(w*255+.5f));
 }
