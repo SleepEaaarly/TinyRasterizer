@@ -1,4 +1,4 @@
-#include "tgaimage.h"
+#include "image.h"
 
 
 bool check_edge(int x, int y, int width, int height) {
@@ -7,7 +7,7 @@ bool check_edge(int x, int y, int width, int height) {
 	return true;
 }
 
-void draw_line(int x0, int y0, int x1, int y1, TGAImage &image, Color c) {
+void draw_line(int x0, int y0, int x1, int y1, Image &image, Color c) {
 	// 单点
 	if (x0 == x1 && y0 == y1) {
 		image.set(x0, y0, c);

@@ -11,8 +11,8 @@ Transform::Transform(int w, int h, int d) {
 }
 
 void Transform::init() {
-    model = Matrix::identity();
-	model_inv = model.invert();
+    // model = Matrix::identity();
+	model = calcModelMatrix(Vec3f(0.75f, 0.75f, 0.75f), Vec3f(0.f, -1.25f, 0.f));
     view = lookAt(Vec3f(0.f, 0.f, 3.f), Vec3f(0.f, 0.f, 0.f), Vec3f(0.f, 1.f, 0.f));
     persp = perspective(45.f, 1.f, 0.1f, 600.f);
     vp = viewport(0, 0, screen_width, screen_height);
@@ -33,16 +33,25 @@ void Transform::init() {
 	};
 }
 
+Matrix Transform::calcModelMatrix(Vec3f scale, Vec3f translate) {
+	Matrix mat;
+	mat[0][0] = scale.x;	mat[0][1] = 0.f;	mat[0][2] = 0.f;	mat[0][3] = translate.x;
+	mat[1][0] = 0.f;	mat[1][1] = scale.y;	mat[1][2] = 0.f;	mat[1][3] = translate.y;
+	mat[2][0] = 0.f;	mat[2][1] = 0.f;	mat[2][2] = scale.z;	mat[2][3] = translate.z;
+	mat[3][0] = 0.f;		mat[3][1] = 0.f;		mat[3][2] = 0.f;		mat[3][3] = 1.f;
+	return mat;
+}
+
 Matrix Transform::lookAt(Vec3f eye, Vec3f center, Vec3f up) {
 	Vec3f z_cam = (eye - center).normalize();
 	Vec3f x_cam = cross(up, z_cam);
 	Vec3f y_cam = cross(z_cam, x_cam);
 
 	Matrix mat;
-	mat[0][0] = x_cam[0];	mat[0][1] = x_cam[1];	mat[0][2] = x_cam[2];	mat[0][3] = 0. - eye * x_cam;
-	mat[1][0] = y_cam[0];	mat[1][1] = y_cam[1];	mat[1][2] = y_cam[2];	mat[1][3] = 0. - eye * y_cam;
-	mat[2][0] = z_cam[0];	mat[2][1] = z_cam[1];	mat[2][2] = z_cam[2];	mat[2][3] = 0. - eye * z_cam;
-	mat[3][0] = 0.;			mat[3][1] = 0.;			mat[3][2] = 0.;			mat[3][3] = 1.;
+	mat[0][0] = x_cam[0];	mat[0][1] = x_cam[1];	mat[0][2] = x_cam[2];	mat[0][3] = 0.f - eye * x_cam;
+	mat[1][0] = y_cam[0];	mat[1][1] = y_cam[1];	mat[1][2] = y_cam[2];	mat[1][3] = 0.f - eye * y_cam;
+	mat[2][0] = z_cam[0];	mat[2][1] = z_cam[1];	mat[2][2] = z_cam[2];	mat[2][3] = 0.f - eye * z_cam;
+	mat[3][0] = 0.f;			mat[3][1] = 0.f;			mat[3][2] = 0.f;			mat[3][3] = 1.f;
 
 	return mat;
 }
@@ -123,49 +132,10 @@ std::vector<Vert> Transform::sutherlandHodgeman(Vert &v0, Vert &v1, Vert &v2) {
 	return output;
 }
 
-std::vector<Triangle> Transform::transform(Mesh &mesh) {
-	Vert vert[3];
-	Matrix m_view_inv = view.transpose();
-	for (int i = 0; i < 3; ++i) {
-		Vec4f pos_view = view * model * Vec4f(mesh.poses[i]);
-		vert[i].pos_view = pos_view.value();
-		vert[i].pos = persp * pos_view;
-		vert[i].norm = ((model_inv*m_view_inv).transpose()*Vec4f(mesh.norms[i], 0.0f)).value();
-		vert[i].tex = mesh.texs[i];
-	}
-
-	// for (int i = 0; i < 3; i++) {
-	// 	std::cout << vert[i].pos.x << ", " << vert[i].pos.y << ", " << vert[i].pos.z << ", " << vert[i].pos.w << std::endl;
-	// }
-	std::vector<Vert> multi_verts = sutherlandHodgeman(vert[0], vert[1], vert[2]);
-
-	std::vector<Triangle> triangles;
-	if (multi_verts.size() < 3) {
-		return triangles;
-	}
-
-	// clip and viewport transform
-	for (int i = 0; i < multi_verts.size(); ++i) {
-		multi_verts[i].pos = vp*(multi_verts[i].pos.clip());
-	}
-
-	for (int i = 1; i < multi_verts.size()-1; ++i) {
-		Triangle tri = toTriangle(multi_verts[0], multi_verts[i], multi_verts[i+1]);
-		triangles.push_back(tri);
-	}
-
-	return triangles;
-}
-
-std::vector<Triangle> Transform::transform(Mesh &mesh, Camera &camera) {
-	updateViewMatrix(camera);
-	return transform(mesh);
-}
-
 std::vector<Triangle> Transform::transform(std::vector<Vert> &verts) {
 	std::vector<Triangle> triangles;
 	Matrix model_view = view * model;
-	Matrix model_view_inv_trans = (model_inv * (view.transpose())).transpose();
+	Matrix model_view_inv_trans = model_view.invert_transpose();
 	Matrix model_view_persp = persp * model_view;
 	for (int i = 0; i < verts.size() / 3; ++i) {
 	 	std::vector<Triangle> tri = transform(verts[3*i], verts[3*i+1], verts[3*i+2], model_view, model_view_inv_trans, model_view_persp);
@@ -183,7 +153,7 @@ Vert Transform::transformVert(Vert &vert, Matrix &model_view, Matrix &model_view
 	Vert v;
 	v.pos_view = (model_view * vert.pos).value();
 	v.pos = model_view_persp * vert.pos;
-	v.norm = (model_view_inv_trans * Vec4f(vert.norm, 0.0f)).value();
+	v.norm = (model_view_inv_trans * Vec4f(vert.norm, 0.0f)).value().normalize();
 	v.tex = vert.tex;
 	return v;
 }
@@ -250,7 +220,7 @@ void Transform::cudaInit(std::vector<Vert> &verts) {
 	num_verts_rst = num_verts;
 
 	Matrix model_view = view * model;
-	Matrix model_view_inv_trans = (model_inv * (view.transpose())).transpose();
+	Matrix model_view_inv_trans = model_view.invert_transpose();
 	Matrix model_view_persp = persp * model_view;
 
 	verts_rst = new Vert[num_verts_rst];
@@ -272,7 +242,7 @@ void Transform::cudaInit(std::vector<Vert> &verts) {
 
 void Transform::cudaUpdateMatrix() {
 	Matrix model_view = view * model;
-	Matrix model_view_inv_trans = (model_inv * (view.transpose())).transpose();
+	Matrix model_view_inv_trans = model_view.invert_transpose();
 	Matrix model_view_persp = persp * model_view;
 
 	cudaMemcpy(d_model_view, model_view.get_ptr(), sizeof(float) * 16, cudaMemcpyHostToDevice);

@@ -62,15 +62,21 @@ __device__ void transformObjectToClip(Vert_cuda* verts, float* model_view, float
                               verts[i].pos.y * model_view[9] + 
                               verts[i].pos.z * model_view[10] + 
                               verts[i].pos.w * model_view[11];
-    verts_rst[j].norm.x = verts[i].norm.x * model_view_inv_trans[0] + 
-                          verts[i].norm.y * model_view_inv_trans[1] +
-                          verts[i].norm.z * model_view_inv_trans[2];
-    verts_rst[j].norm.y = verts[i].norm.x * model_view_inv_trans[4] + 
-                          verts[i].norm.y * model_view_inv_trans[5] +
-                          verts[i].norm.z * model_view_inv_trans[6];
-    verts_rst[j].norm.z = verts[i].norm.x * model_view_inv_trans[8] + 
-                          verts[i].norm.y * model_view_inv_trans[9] +
-                          verts[i].norm.z * model_view_inv_trans[10];      
+    float norm_x, norm_y, norm_z;
+    norm_x = verts[i].norm.x * model_view_inv_trans[0] + 
+            verts[i].norm.y * model_view_inv_trans[1] +
+            verts[i].norm.z * model_view_inv_trans[2];
+    norm_y = verts[i].norm.x * model_view_inv_trans[4] + 
+            verts[i].norm.y * model_view_inv_trans[5] +
+            verts[i].norm.z * model_view_inv_trans[6];
+    norm_z = verts[i].norm.x * model_view_inv_trans[8] + 
+            verts[i].norm.y * model_view_inv_trans[9] +
+            verts[i].norm.z * model_view_inv_trans[10];  
+                          
+    float rsqrt_norm = rsqrtf(norm_x*norm_x+norm_y*norm_y+norm_z*norm_z);
+    verts_rst[j].norm.x = norm_x * rsqrt_norm;
+    verts_rst[j].norm.y = norm_y * rsqrt_norm;
+    verts_rst[j].norm.z = norm_z * rsqrt_norm;
 }
 
 __device__ void transformClipToScreen(Vert_cuda* vert_rst, float* vp, int i) {

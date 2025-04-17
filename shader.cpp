@@ -60,27 +60,31 @@ Light* PhongShader::getLightPtr() {
 }
 
 Color PhongShader::shadeFragment(Fragment &frag) {
-    Vec3f ka = Vec3f(0.005, 0.005, 0.005);
-    Vec3f kd = Uchar2Float(texture->get_color(frag.tex[0], frag.tex[1])).value();
-    Vec3f ks = Vec3f(0.5, 0.5, 0.5);
+    Vec3f albedo = Uchar2Float(texture->get_color(frag.tex[0], frag.tex[1])).value();
+    albedo = Vec3f(powf(albedo.x, 2.2f), powf(albedo.y, 2.2f), powf(albedo.z, 2.2f));
+    Vec3f ka = Vec3f(0.8f, 0.8f, 0.8f);
+    Vec3f kd = Vec3f(0.2f, 0.2f, 0.2f);
+    Vec3f ks = Vec3f(1.f, 1.f, 1.f);
 
-    Vec3f light_intensity = light->color;
-    Vec3f ambient(ka.x*light_intensity.x, ka.y*light_intensity.y, ka.z*light_intensity.z);
+    Vec3f ambient(ka.x*albedo.x, ka.y*albedo.y, ka.z*albedo.z);
     
+    Vec3f light_intensity = light->color;    
     Vec3f vec_l = -1 * light->dir;
     float diff = std::max(0.f, vec_l*frag.norm);
-    Vec3f diffuse(kd.x*light_intensity.x, kd.y*light_intensity.y, kd.z*light_intensity.z);
+    Vec3f diffuse(albedo.x*light_intensity.x*kd.x, albedo.y*light_intensity.y*kd.y, albedo.z*light_intensity.z*kd.z);
     diffuse = diffuse * diff;
 
     // view coords eye_pos = Vec3f(0.f,0.f,0.f)
     float p = 128.f;
     Vec3f vec_v = -1 * frag.pos_view;
     Vec3f vec_h = (vec_l + vec_v).normalize();
-    float spec = std::max(0.f, std::pow(frag.norm*vec_h, p));
+    float spec = std::max(0.f, std::powf(frag.norm*vec_h, p));
+    // std::cout << spec << std::endl;
     Vec3f specular(ks.x*light_intensity.x, ks.y*light_intensity.y, ks.z*light_intensity.z);
     specular = specular * spec;
 
     Vec3f all_shade = ambient+diffuse+specular;
-
+    all_shade = Vec3f(powf(all_shade.x, 0.45f), powf(all_shade.y, 0.45f), powf(all_shade.z, 0.45f));
+    
     return Float2Uchar(Vec4f(all_shade, 1.0f));
 }

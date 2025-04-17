@@ -3,7 +3,7 @@
 
 #define NOMINMAX
 #include <windows.h>
-#include "tgaimage.h"
+#include "image.h"
 
 class Window
 {

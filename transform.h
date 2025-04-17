@@ -20,7 +20,6 @@ private:
 	Matrix view;
 	Matrix persp;
 	Matrix vp;
-	Matrix model_inv;
 	std::vector<Vec4f> clipPlanes;
 
 	// cuda device pointers
@@ -52,11 +51,10 @@ public:
 
 	Transform(int w, int h, int d);
 
+	Matrix calcModelMatrix(Vec3f scale, Vec3f translate);
     Matrix lookAt(Vec3f eye, Vec3f center, Vec3f up = Vec3f(0., 1., 0.));
 	Matrix perspective(float fovY, float aspect, float near, float far);
 	Matrix viewport(int x, int y, int w, int h);
-	std::vector<Triangle> transform(Mesh &mesh);
-	std::vector<Triangle> transform(Mesh &mesh, Camera &camera);
 	std::vector<Triangle> transform(std::vector<Vert> &verts);
 	std::vector<Triangle> transform(std::vector<Vert> &verts, Camera &camera);
 	void transformCuda(std::vector<Vert> &verts);

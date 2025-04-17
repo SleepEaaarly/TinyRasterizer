@@ -2,7 +2,7 @@
 #include "rasterizer_cuda.cuh"
 #include <chrono>
 
-Rasterizer::Rasterizer(Shader &shader, Buffer &z_buffer, TGAImage &image) {
+Rasterizer::Rasterizer(Shader &shader, Buffer &z_buffer, Image &image) {
     this->shader = &shader;
     this->z_buffer = &z_buffer;
 	this->image = &image;
@@ -91,7 +91,7 @@ void Rasterizer::cudaInit(Vert *d_verts_rst_in, int num_verts_rst) {
 
 	int image_size = image->get_width() * image->get_height() * image->get_bytespp();
 	int buf_size = z_buffer->getWidth() * z_buffer->getHeight();
-	TGAImage *texture_image = shader->getTexturePtr()->getImagePtr();
+	Image *texture_image = shader->getTexturePtr()->getImagePtr();
 	int texture_size = texture_image->get_width() * texture_image->get_height() * texture_image->get_bytespp();
 	cudaMalloc((void**)&d_z_buffer, buf_size*sizeof(float));
 	// no need to cpy z_buffer data cause we will init z_buffer in kernel
@@ -125,7 +125,7 @@ void Rasterizer::rasterizeVertsCuda() {
 	int width = image->get_width();
 	int height = image->get_height();
 	int bytespp = image->get_bytespp();
-	TGAImage *texture_image = shader->getTexturePtr()->getImagePtr();
+	Image *texture_image = shader->getTexturePtr()->getImagePtr();
 	int tex_width = texture_image->get_width();
 	int tex_height = texture_image->get_height();
 	int tex_bytespp = texture_image->get_bytespp();

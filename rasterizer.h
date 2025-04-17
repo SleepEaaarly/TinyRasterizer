@@ -8,7 +8,7 @@ class Rasterizer {
 private:
     Shader *shader;
     Buffer *z_buffer;
-    TGAImage *image;
+    Image *image;
 
 
     // cuda pointers
@@ -29,7 +29,7 @@ private:
 
 
 public:
-    Rasterizer(Shader &shader, Buffer &z_buffer, TGAImage &image);
+    Rasterizer(Shader &shader, Buffer &z_buffer, Image &image);
     void rasterizeTriangles(std::vector<Triangle> &triangles);
     
     void cudaInit(Vert* d_verts_rst_in, int num_verts_rst);

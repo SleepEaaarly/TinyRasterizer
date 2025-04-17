@@ -1,5 +1,5 @@
-#ifndef __IMAGE_H__
-#define __IMAGE_H__
+#ifndef TGAIMAGE_H
+#define TGAIMAGE_H
 
 #include <fstream>
 

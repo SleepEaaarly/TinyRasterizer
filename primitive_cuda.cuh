@@ -58,7 +58,7 @@ struct Fragment_cuda {
 struct Color_cuda {
 	union {
 		struct {
-			unsigned char b, g, r, a;
+			unsigned char r, g, b, a;
 		};
 		unsigned char raw[4];
 		unsigned int val;
@@ -66,17 +66,8 @@ struct Color_cuda {
     __device__ Color_cuda() : val(0) {
 	}
 
-	__device__ Color_cuda(unsigned char R, unsigned char G, unsigned char B, unsigned char A) : b(B), g(G), r(R), a(A) {
+	__device__ Color_cuda(unsigned char R, unsigned char G, unsigned char B, unsigned char A) : r(R), g(G), b(B), a(A) {
 	}
-};
-
-struct Triangle_cuda {
-    Vec3f_cuda poses[3];
-    Vec2f_cuda texs[3];
-    Vec3f_cuda norms[3];
-    Vec3f_cuda poses_view[3];
-    __device__ Triangle_cuda() {}
-    
 };
 
 #endif

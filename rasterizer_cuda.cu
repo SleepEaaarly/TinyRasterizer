@@ -109,16 +109,18 @@ __device__ Color_cuda getTextureColor(unsigned char* texture, int tex_width, int
 
 __device__ Color_cuda BlinnPhongShade(Fragment_cuda &frag, unsigned char* texture, int tex_width, int tex_height, int tex_bytespp, Vec3f_cuda* light_color, Vec3f_cuda* light_dir) {
     Color_cuda tex_color = getTextureColor(texture, tex_width, tex_height, tex_bytespp, frag.tex.x, frag.tex.y);
-    Vec3f_cuda ka = Vec3f_cuda(0.005, 0.005, 0.005);
-    Vec3f_cuda kd = CudaUchar2Float(tex_color).value();
-    Vec3f_cuda ks = Vec3f_cuda(0.5, 0.5, 0.5);
+    Vec3f_cuda albedo = CudaUchar2Float(tex_color).value();
+    albedo = Vec3f_cuda(powf(albedo.x, 2.2f), powf(albedo.y, 2.2f), powf(albedo.z, 2.2f));
+    Vec3f_cuda ka = Vec3f_cuda(0.8f, 0.8f, 0.8f);
+    Vec3f_cuda kd = Vec3f_cuda(0.2f, 0.2f, 0.2f);
+    Vec3f_cuda ks = Vec3f_cuda(1.f, 1.f, 1.f);
 
-    Vec3f_cuda ambient(ka.x*light_color->x, ka.y*light_color->y, ka.z*light_color->z);
+    Vec3f_cuda ambient(ka.x*albedo.x, ka.y*albedo.y, ka.z*albedo.z);
 
     Vec3f_cuda vec_l = Vec3f_cuda(-light_dir->x, -light_dir->y, -light_dir->z);
     float NdotL = vec_l.x * frag.norm.x + vec_l.y * frag.norm.y + vec_l.z * frag.norm.z;
     float diff = fmaxf(0.f, NdotL);
-    Vec3f_cuda diffuse(kd.x*light_color->x*diff, kd.y*light_color->y*diff, kd.z*light_color->z*diff);
+    Vec3f_cuda diffuse(albedo.x*light_color->x*diff*kd.x, albedo.y*light_color->y*diff*kd.y, albedo.z*light_color->z*diff*kd.z);
 
     float p = 128.f;
     Vec3f_cuda vec_v(-frag.pos_view.x, -frag.pos_view.y, -frag.pos_view.z);
@@ -128,6 +130,7 @@ __device__ Color_cuda BlinnPhongShade(Fragment_cuda &frag, unsigned char* textur
     Vec3f_cuda specular(ks.x*light_color->x*spec, ks.y*light_color->y*spec, ks.z*light_color->z*spec);
 
     Vec3f_cuda rst = vec3f_add(vec3f_add(ambient, diffuse), specular);
+    rst = Vec3f_cuda(powf(rst.x, 0.45f), powf(rst.y, 0.45f), powf(rst.z, 0.45f));
 
     return CudaFloat2Uchar(Vec4f_cuda(rst.x, rst.y, rst.z, 1.0f));
 }

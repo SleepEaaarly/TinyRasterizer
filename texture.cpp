@@ -2,7 +2,7 @@
 
 Texture::Texture(const char *filename)
 {
-    image.read_tga_file(filename);
+    image.read_file(filename);
     image.flip_vertically();
 }
 
@@ -17,6 +17,6 @@ Color Texture::get_color(float u, float v) {
     return image.get((int)(u * width), (int)(v * height));
 }
 
-TGAImage* Texture::getImagePtr() {
+Image* Texture::getImagePtr() {
     return &image;
 }
