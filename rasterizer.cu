@@ -134,7 +134,7 @@ void Rasterizer::rasterizeVertsCuda() {
 	dim3 block_dim(16, 16, 1);
 	
 	auto start = std::chrono::high_resolution_clock::now();
-	rasterization<<<grid_dim, block_dim>>>((Vert_cuda*)d_verts_scr, num_verts_scr, d_image, d_z_buffer, width, height, bytespp, 
+	rasterizationBlinnPhong<<<grid_dim, block_dim>>>((Vert_cuda*)d_verts_scr, num_verts_scr, d_image, d_z_buffer, width, height, bytespp, 
 											d_texture, tex_width, tex_height, tex_bytespp, (Vec3f_cuda*)d_light_color, (Vec3f_cuda*)d_light_dir);
 	cudaDeviceSynchronize();
 	auto end = std::chrono::high_resolution_clock::now();

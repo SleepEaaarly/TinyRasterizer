@@ -1,6 +1,6 @@
 #include "rasterizer_cuda.cuh"
 
-__global__ void rasterization(Vert_cuda *verts, int verts_size, unsigned char *image, float *z_buffer, int width, int height, int bytespp, 
+__global__ void rasterizationBlinnPhong(Vert_cuda *verts, int verts_size, unsigned char *image, float *z_buffer, int width, int height, int bytespp, 
                                 unsigned char *texture, int tex_width, int tex_height, int tex_bytespp, Vec3f_cuda *light_color, Vec3f_cuda *light_dir) {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
