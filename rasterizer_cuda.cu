@@ -1,4 +1,6 @@
 #include "rasterizer_cuda.cuh"
+#define TILE_WIDTH 16
+// TILE_WIDTH == blockDim
 
 __global__ void rasterizationBlinnPhong(Vert_cuda *verts, int verts_size, unsigned char *image, float *z_buffer, int width, int height, int bytespp, 
                                 unsigned char *texture, int tex_width, int tex_height, int tex_bytespp, Vec3f_cuda *light_color, Vec3f_cuda *light_dir) {
@@ -6,13 +8,25 @@ __global__ void rasterizationBlinnPhong(Vert_cuda *verts, int verts_size, unsign
     int col = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (row >= height || col >= width) return;
-
+    
+    __shared__ unsigned char ds_image[TILE_WIDTH*TILE_WIDTH*4];
+    __shared__ float ds_z_buffer[TILE_WIDTH*TILE_WIDTH];
+    
     // clear Image and Zbuffer
     int idx = row * width + col;
+    // for (int i = 0; i < bytespp; ++i) {
+    //     image[bytespp*idx + i] = 0;
+    // }
+    // z_buffer[idx] = INFINITY;
+    
+    // clear ds_image and ds_z_buffer and load ds_texture
+    int ds_row = threadIdx.y;
+    int ds_col = threadIdx.x;
+    int ds_idx = threadIdx.y * TILE_WIDTH + threadIdx.x;
     for (int i = 0; i < bytespp; ++i) {
-        image[bytespp*idx + i] = 0;
-    }
-    z_buffer[idx] = INFINITY;
+        ds_image[ds_idx*bytespp+i] = 0;
+    } 
+    ds_z_buffer[ds_idx] = INFINITY;
 
     // rasterize all verts, 3 in groups
     for (int i = 0; i < verts_size / 3; ++i) {
@@ -33,14 +47,24 @@ __global__ void rasterizationBlinnPhong(Vert_cuda *verts, int verts_size, unsign
         if (lambda.x >= 0.f && lambda.y >= 0.f && lambda.z >= 0.f) {
             Fragment_cuda frag = perspInterpolate(vert0, vert1, vert2, lambda, col, row);
             float z = frag.z;
-            if (z < z_buffer[idx]) {
-                z_buffer[idx] = z;
+            // if (z < z_buffer[idx]) {
+            //     z_buffer[idx] = z;
+            //     Color_cuda c = BlinnPhongShade(frag, texture, tex_width, tex_height, tex_bytespp, light_color, light_dir);
+            //     setPixel(col, row, c, image, width, bytespp);
+            // }
+            if (z < ds_z_buffer[ds_idx]) {
+                ds_z_buffer[ds_idx] = z;
                 Color_cuda c = BlinnPhongShade(frag, texture, tex_width, tex_height, tex_bytespp, light_color, light_dir);
-                setPixel(col, row, c, image, width, bytespp);
+                setPixel(ds_col, ds_row, c, ds_image, TILE_WIDTH, bytespp);
             }
         }
     }
 
+    // assign image and z_buffer
+    for (int i = 0; i < bytespp; ++i) {
+        image[idx*bytespp+i] = ds_image[ds_idx*bytespp+i];
+    } 
+    z_buffer[idx] = ds_z_buffer[ds_idx];
 }
 
 __device__ Vec3f_cuda baryCentric(Vert_cuda &vert0, Vert_cuda &vert1, Vert_cuda &vert2, float x, float y) {
@@ -100,6 +124,7 @@ __device__ Color_cuda getTextureColor(unsigned char* texture, int tex_width, int
 		return Color_cuda();
 	}
     Color_cuda rst;
+    // tile texture
     int st = (x+y*tex_width)*tex_bytespp;
     for (int i = 0; i < tex_bytespp; ++i) {
         rst.raw[i] = texture[st+i];

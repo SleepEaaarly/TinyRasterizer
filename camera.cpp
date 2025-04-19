@@ -32,6 +32,14 @@ void Camera::updateVector() {
 
 }
 
+void Camera::setPos(Vec3f &pos) {
+    position = pos;
+}
+
+void Camera::setFrontVector(Vec3f &front_vec) {
+    front = front_vec;
+}
+
 void Camera::processInput() {
     if (Window::screenKeys[VK_LEFT]) {
         position = position - .2f * right;

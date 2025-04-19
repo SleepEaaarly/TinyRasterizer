@@ -133,13 +133,13 @@ void Rasterizer::rasterizeVertsCuda() {
 	dim3 grid_dim((width-1)/16+1, (height-1)/16+1, 1);
 	dim3 block_dim(16, 16, 1);
 	
-	auto start = std::chrono::high_resolution_clock::now();
+	// auto start = std::chrono::high_resolution_clock::now();
 	rasterizationBlinnPhong<<<grid_dim, block_dim>>>((Vert_cuda*)d_verts_scr, num_verts_scr, d_image, d_z_buffer, width, height, bytespp, 
 											d_texture, tex_width, tex_height, tex_bytespp, (Vec3f_cuda*)d_light_color, (Vec3f_cuda*)d_light_dir);
 	cudaDeviceSynchronize();
-	auto end = std::chrono::high_resolution_clock::now();
-	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-	std::cout << "fragment kernel function in rasterizer: " << duration.count() << " milliseconds" << std::endl;
+	// auto end = std::chrono::high_resolution_clock::now();
+	// auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+	// std::cout << "fragment kernel function in rasterizer: " << duration.count() << " milliseconds" << std::endl;
 
 	int image_size = width * height * bytespp;
 	cudaMemcpy(image->buffer(), d_image, image_size * sizeof(unsigned char), cudaMemcpyDeviceToHost);

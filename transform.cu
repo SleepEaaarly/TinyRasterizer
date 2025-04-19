@@ -202,16 +202,16 @@ void Transform::transformCuda(std::vector<Vert> &verts) {
 	dim3 grid_dim((num_verts-1)/128+1, 1, 1);
 	dim3 block_dim(128, 1, 1);
 
-	auto start = std::chrono::high_resolution_clock::now();
+	// auto start = std::chrono::high_resolution_clock::now();
 	transformObjectToScreenKernal<<<grid_dim, block_dim>>>(
 		(Vert_cuda*)d_verts, d_model_view, d_model_view_inv_trans, d_model_view_persp, d_vp, (Vert_cuda*)d_verts_rst, num_verts
 	);
 	cudaDeviceSynchronize();
 	
 	cudaMemcpy(verts_rst, d_verts_rst, num_verts_rst * sizeof(Vert), cudaMemcpyDeviceToHost);
-	auto end = std::chrono::high_resolution_clock::now();
-	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-	std::cout << "vertex kernel function: " << duration.count() << " milliseconds" << std::endl;
+	// auto end = std::chrono::high_resolution_clock::now();
+	// auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+	// std::cout << "vertex kernel function: " << duration.count() << " milliseconds" << std::endl;
 
 }
 
