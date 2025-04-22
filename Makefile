@@ -34,4 +34,3 @@ run: $(DESTDIR)$(TARGET)
 clean:
 	-rm -f $(OBJECTS)
 	-rm -f $(TARGET)
-	-rm -f rst/*.png
