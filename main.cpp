@@ -109,7 +109,7 @@ int main(int argc, char** argv) {
 
 	vShader.cudaRelease();
 	rasterizer.cudaRelease();
-
+	delete model;
 	// image.write_png_file("output.png");
 
 	return 0;
